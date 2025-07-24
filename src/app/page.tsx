@@ -1,103 +1,281 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
+import Image from "next/image"
+import { Home, ShoppingBag, Plus, User, TrendingUp, Search } from "lucide-react"
+import { NavBar } from "@/components/ui/tubelight-navbar"
+import { Typewriter } from "@/components/ui/typewriter"
+import { motion } from "framer-motion"
+
+export default function HomePage() {
+  const navItems = [
+    { name: 'Home', url: '/', icon: Home },
+    { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
+    { name: 'Create', url: '/create', icon: Plus },
+    { name: 'Profile', url: '/profile', icon: User },
+  ]
+
+  const featuredNFTs = [
+    {
+      id: 1,
+      title: "Ocean Waves #001",
+      artist: "AquaArtist",
+      price: "2.5 ETH",
+      image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&h=400&fit=crop&crop=center"
+    },
+    {
+      id: 2,
+      title: "Deep Sea Explorer",
+      artist: "MarineCreator",
+      price: "1.8 ETH",
+      image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop&crop=center"
+    },
+    {
+      id: 3,
+      title: "Coral Reef Dreams",
+      artist: "ReefMaster",
+      price: "3.2 ETH",
+      image: "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&h=400&fit=crop&crop=center"
+    },
+    {
+      id: 4,
+      title: "Whale Song",
+      artist: "OceanSounds",
+      price: "4.1 ETH",
+      image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=400&h=400&fit=crop&crop=center"
+    }
+  ]
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
+      <NavBar items={navItems} />
+      
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center px-4 pt-20">
+        <div className="absolute inset-0 overflow-hidden">
+          <Image
+            src="https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=1920&h=1080&fit=crop&crop=center"
+            alt="Ocean background"
+            fill
+            className="object-cover opacity-20"
+            priority
+          />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+        
+        <div className="relative z-10 text-center max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="mb-8"
+          >
+            <h1 className="text-6xl md:text-8xl font-bold bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 bg-clip-text text-transparent mb-6">
+              OceanSport
+            </h1>
+            <div className="text-2xl md:text-4xl font-medium text-gray-700 dark:text-gray-300 mb-8">
+              <span>Dive into the future of </span>
+              <Typewriter
+                text={[
+                  "digital art",
+                  "NFT trading",
+                  "ocean conservation",
+                  "marine creativity",
+                  "underwater exploration"
+                ]}
+                speed={100}
+                className="text-blue-600 dark:text-cyan-400 font-bold"
+                waitTime={2000}
+                deleteSpeed={50}
+                cursorChar="🌊"
+              />
+            </div>
+          </motion.div>
+          
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed"
+          >
+            Welcome to OceanSport - the premier NFT marketplace where marine artistry meets blockchain technology. 
+            Discover, collect, and trade unique digital assets inspired by the beauty and mystery of our oceans. 
+            From underwater photography to marine life illustrations, every piece tells a story of the deep blue.
+          </motion.p>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.6 }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+          >
+            <button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+              <ShoppingBag className="inline-block mr-2" size={20} />
+              Explore Marketplace
+            </button>
+            <button className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+              <Plus className="inline-block mr-2" size={20} />
+              Create NFT
+            </button>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Stats Section */}
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center"
+          >
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <div className="text-3xl font-bold text-blue-600 mb-2">10K+</div>
+              <div className="text-gray-600 dark:text-gray-400">NFTs Traded</div>
+            </div>
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <div className="text-3xl font-bold text-cyan-600 mb-2">5K+</div>
+              <div className="text-gray-600 dark:text-gray-400">Artists</div>
+            </div>
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <div className="text-3xl font-bold text-teal-600 mb-2">50K+</div>
+              <div className="text-gray-600 dark:text-gray-400">Collectors</div>
+            </div>
+            <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
+              <div className="text-3xl font-bold text-blue-600 mb-2">2.5M ETH</div>
+              <div className="text-gray-600 dark:text-gray-400">Volume</div>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Featured NFTs Section */}
+      <section className="py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-white mb-4">
+              Featured Collections
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+              Discover the most sought-after marine-inspired NFTs from our talented community of ocean artists.
+            </p>
+          </motion.div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {featuredNFTs.map((nft, index) => (
+              <motion.div
+                key={nft.id}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+              >
+                <div className="relative aspect-square">
+                  <Image
+                    src={nft.image}
+                    alt={nft.title}
+                    fill
+                    className="object-cover"
+                  />
+                  <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full p-2">
+                    <TrendingUp className="text-white" size={16} />
+                  </div>
+                </div>
+                <div className="p-6">
+                  <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{nft.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-4">by {nft.artist}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-blue-600">{nft.price}</span>
+                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                      Buy Now
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl p-12 text-white"
+          >
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Ready to Make Waves?
+            </h2>
+            <p className="text-xl mb-8 opacity-90">
+              Join thousands of artists and collectors in the world's most vibrant ocean-themed NFT marketplace.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+                <Search className="inline-block mr-2" size={20} />
+                Browse Collections
+              </button>
+              <button className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+                <User className="inline-block mr-2" size={20} />
+                Join Community
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-12 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                OceanSport
+              </h3>
+              <p className="text-gray-400">
+                The premier destination for ocean-inspired NFTs and marine digital art.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Marketplace</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li><a href="#" className="hover:text-white transition-colors">Explore</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Collections</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Artists</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Create</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li><a href="#" className="hover:text-white transition-colors">Mint NFT</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Guidelines</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Resources</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Community</h4>
+              <ul className="space-y-2 text-gray-400">
+                <li><a href="#" className="hover:text-white transition-colors">Discord</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Twitter</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+            <p>&copy; 2024 OceanSport. All rights reserved. Dive into the future of digital art.</p>
+          </div>
+        </div>
       </footer>
     </div>
-  );
+  )
 }
