@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Search, Filter, Grid, List } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Search, Filter, Grid, List, Gavel } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState } from "react"
@@ -13,6 +13,7 @@ export default function MarketplacePage() {
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
+    { name: 'Auction', url: '/auction', icon: Gavel },
     { name: 'Create', url: '/create', icon: Plus },
     { name: 'Profile', url: '/profile', icon: User },
   ]

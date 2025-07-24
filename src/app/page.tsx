@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, TrendingUp, Search } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, TrendingUp, Search, Gavel } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { Typewriter } from "@/components/ui/typewriter"
 import { motion } from "framer-motion"
@@ -10,6 +10,7 @@ export default function HomePage() {
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
+    { name: 'Auction', url: '/auction', icon: Gavel },
     { name: 'Create', url: '/create', icon: Plus },
     { name: 'Profile', url: '/profile', icon: User },
   ]
