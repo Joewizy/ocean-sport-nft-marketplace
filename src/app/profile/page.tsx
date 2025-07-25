@@ -1,13 +1,15 @@
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Edit, Share2, Heart, Eye, Gavel } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Edit, Share2, Heart, Eye, Gavel, Tag } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
+import { ListNFTModal } from "@/components/ui/list-nft-modal"
 import { motion } from "framer-motion"
 import { useState } from "react"
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'collected' | 'created' | 'activity'>('collected')
+  const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: any }>({ isOpen: false, nft: null })
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -180,9 +182,18 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     </div>
-                    <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
-                      View Details
-                    </button>
+                    <div className="flex gap-2">
+                      <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                        View Details
+                      </button>
+                      <button 
+                        onClick={() => setListingModal({ isOpen: true, nft })}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Tag size={14} />
+                        List
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -239,6 +250,13 @@ export default function ProfilePage() {
           )}
         </div>
       </section>
+
+      {/* List NFT Modal */}
+      <ListNFTModal
+        isOpen={listingModal.isOpen}
+        onClose={() => setListingModal({ isOpen: false, nft: null })}
+        nft={listingModal.nft || { id: 0, title: '', image: '' }}
+      />
     </div>
   )
 }

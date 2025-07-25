@@ -46,8 +46,24 @@ export function NavBar({ items, className }: NavBarProps) {
   return (
     <div className="fixed top-0 left-0 right-0 z-50 pt-6 px-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Left spacer for balance */}
-        <div className="w-32 hidden sm:block"></div>
+        {/* Twitter Logo - Left Side */}
+        <div className="w-32 flex justify-start">
+          <a 
+            href="https://twitter.com/BruceWayne82118" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20"
+          >
+            <svg 
+              className="w-6 h-6" 
+              fill="currentColor" 
+              viewBox="0 0 24 24" 
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+            </svg>
+          </a>
+        </div>
         
         {/* Navigation Items - Center */}
         <div className="flex justify-center flex-1">
@@ -142,7 +158,7 @@ export function NavBar({ items, className }: NavBarProps) {
                         <button
                           onClick={openChainModal}
                           type="button"
-                          className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full text-sm font-semibold transition-colors shadow-lg"
+                          className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-full text-sm font-semibold transition-colors shadow-lg  w-40"
                         >
                           Wrong network
                         </button>
@@ -152,7 +168,7 @@ export function NavBar({ items, className }: NavBarProps) {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={openChainModal}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-full text-xs font-medium transition-colors shadow-lg"
+                          className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-full text-xs font-medium transition-colors shadow-lg w-40"
                           type="button"
                         >
                           {chain.hasIcon && (
@@ -180,7 +196,7 @@ export function NavBar({ items, className }: NavBarProps) {
                         <button
                           onClick={openAccountModal}
                           type="button"
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full text-sm font-semibold transition-colors shadow-lg"
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full text-sm font-semibold transition-colors shadow-lg w-40"
                         >
                           {account.displayName}
                           {account.displayBalance

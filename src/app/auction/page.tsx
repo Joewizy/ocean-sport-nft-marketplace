@@ -17,6 +17,7 @@ export default function AuctionPage() {
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
+    { name: 'Auction', url: '/auction', icon: Gavel },
     { name: 'Create', url: '/create', icon: Plus },
     { name: 'Profile', url: '/profile', icon: User },
   ]
