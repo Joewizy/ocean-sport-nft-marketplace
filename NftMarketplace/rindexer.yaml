@@ -1,0 +1,28 @@
+name: NftMarketplace
+project_type: no-code
+config: {}
+networks:
+- name: base-sepolia
+  chain_id: 1
+  rpc: https://base-sepolia.g.alchemy.com/v2/CIg8zFdnL20lGSUXP9_JRIdBrUecYHRy
+storage:
+  postgres:
+    enabled: true
+  csv:
+    enabled: true
+    path: ./generated_csv
+native_transfers:
+  enabled: false
+contracts:
+- name: NFTMarketplace
+  details:
+  - network: base-sepolia
+    address: 0xae78736cd615f374d3085123a210448e74fc6393
+    start_block: '28879600'
+  abi: ./abis/NftMarketplace.abi.json
+  include_events:
+  - NFTListed
+  - NFTSold
+  - AuctionCreated
+  - BidPlaced
+  - AuctionEnded

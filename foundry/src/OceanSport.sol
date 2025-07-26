@@ -4,11 +4,12 @@ pragma solidity ^0.8.20;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import {ERC721Burnable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import {ERC2981} from "@openzeppelin/contracts/token/common/ERC2981.sol";
 import {ERC2771Context} from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 import {Context} from "@openzeppelin/contracts/utils/Context.sol";
 
-contract OceanSport is ERC2771Context, ERC721, ERC721URIStorage, ERC721Burnable, ERC2981 {
+contract OceanSport is ERC2771Context, ERC721, ERC721URIStorage, ERC721Enumerable, ERC721Burnable, ERC2981 {
     uint256 private _nextTokenId;
     address public immutable trustedForwarder;
 
@@ -41,10 +42,15 @@ contract OceanSport is ERC2771Context, ERC721, ERC721URIStorage, ERC721Burnable,
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721URIStorage, ERC2981)
+        override(ERC721, ERC721Enumerable, ERC721URIStorage, ERC2981)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);
+    }
+
+    function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
+     internal override(ERC721, ERC721Enumerable) {
+    super._beforeTokenTransfer(from, to, tokenId, batchSize);
     }
 
     // Fix: Need to specify both Context and ERC2771Context in override

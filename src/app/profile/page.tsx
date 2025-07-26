@@ -6,10 +6,17 @@ import { NavBar } from "@/components/ui/tubelight-navbar"
 import { ListNFTModal } from "@/components/ui/list-nft-modal"
 import { motion } from "framer-motion"
 import { useState } from "react"
+import { readContract } from "@wagmi/core";
+import { oceansportAbi, oceansportAddress } from "@/contracts/constants"
+import { useAccount, useConfig } from "wagmi"
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'collected' | 'created' | 'activity'>('collected')
   const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: any }>({ isOpen: false, nft: null })
+  const [userNFT, setUserNft] = useState("");
+
+  const {address} = useAccount()
+  const config = useConfig()
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -18,6 +25,54 @@ export default function ProfilePage() {
     { name: 'Create', url: '/create', icon: Plus },
     { name: 'Profile', url: '/profile', icon: User },
   ]
+
+  async function getUserNFTs() {
+    try {
+      if (!address) return console.warn("No connected wallet");
+
+      const balance = await readContract(config, {
+        abi: oceansportAbi,
+        address: oceansportAddress as `0x${string}`,
+        functionName: "balanceOf",
+        args: [address],
+      });
+
+      const nftPromises = [];
+
+      for (let i = 0; i < Math.min(3, Number(balance)); i++) {
+        const tokenId = await readContract(config, {
+          abi: oceansportAbi,
+          address: oceansportAddress as `0x${string}`,
+          functionName: "tokenOfOwnerByIndex",
+          args: [address, BigInt(i)],
+        });
+
+        const tokenURI = await readContract(config, {
+          abi: oceansportAbi,
+          address: oceansportAddress as `0x${string}`,
+          functionName: "tokenURI",
+          args: [tokenId],
+        });
+
+        // Fetch the metadata from tokenURI (IPFS)
+        const metadata = await fetch(tokenURI).then(res => res.json());
+
+        nftPromises.push({
+          id: tokenId.toString(),
+          title: metadata.name || `NFT #${tokenId}`,
+          image: metadata.image,
+          description: metadata.description || "",
+          likes: Math.floor(Math.random() * 50),
+          views: Math.floor(Math.random() * 200),
+        });
+      }
+
+      const userNfts = await Promise.all(nftPromises);
+      setUserNft(userNfts);
+    } catch (err) {
+      console.error("Error fetching NFTs:", err);
+    }
+  }
 
   const userNFTs = [
     {
