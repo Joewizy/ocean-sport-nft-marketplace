@@ -1,9 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { useConfig } from "wagmi"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Tag, Clock, Gavel } from "lucide-react"
-import { useNFTListing, useNFTAuction } from "@/hooks/useNFT"
+import { X, Tag, Clock, Gavel, DollarSign, Coins } from "lucide-react"
+import { waitForTransactionReceipt } from "@wagmi/core"
+import { useAccount, useWriteContract } from "wagmi"
+import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAddress } from "@/contracts/constants"
+import { useMarketplaceApproval } from "@/hooks/useNFT"
 
 interface ListNFTModalProps {
   isOpen: boolean
@@ -20,30 +24,143 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
   const [listingType, setListingType] = useState<'fixed' | 'auction'>('fixed')
   const [price, setPrice] = useState('')
   const [startingBid, setStartingBid] = useState('')
-  const [duration, setDuration] = useState('7') // days
+  const [duration, setDuration] = useState('7')
+  const [isUSDT, setIsUSDT] = useState<boolean>(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [error, setError] = useState<string>('')
   
-  const { listNFT, isLoading: isListing, error: listError } = useNFTListing()
-  const { createAuction, isLoading: isCreatingAuction, error: auctionError } = useNFTAuction()
+  const config = useConfig()
+  const account = useAccount()
+  const { writeContractAsync } = useWriteContract()
+  
+  // Use our custom approval hook
+  const { 
+    setApproval, 
+    checkApproval, 
+    isLoading: approvalLoading, 
+    approvalError, 
+    clearError: clearApprovalError 
+  } = useMarketplaceApproval()
+
+  const clearError = () => {
+    setError('')
+    clearApprovalError()
+  }
 
   const handleFixedPriceListing = async () => {
-    if (!price) return
-    await listNFT(nft.id, price)
-    if (!listError) {
+    if (!price) {
+      setError("Please enter a price")
+      return
+    }
+    
+    setIsProcessing(true)
+    clearError()
+    
+    try {
+      // Check if marketplace is approved
+      const isApproved = await checkApproval()
+      
+      if (!isApproved) {
+        const approvalSuccess = await setApproval()
+        if (!approvalSuccess) {
+          setError("Failed to approve marketplace. Please try again.")
+          setIsProcessing(false)
+          return
+        }
+      }
+      
+      // Convert price to proper format (assuming 18 decimals)
+      const priceInWei = BigInt(Math.floor(parseFloat(price) * 1e18))
+      
+      await listNft(priceInWei, nft.id.toString(), isUSDT)
+      
+      // Close modal on success
       onClose()
+    } catch (err) {
+      console.error('Error listing NFT:', err)
+      setError("Failed to list NFT. Please try again.")
+    } finally {
+      setIsProcessing(false)
     }
   }
 
   const handleAuctionListing = async () => {
-    if (!startingBid || !duration) return
-    const durationInSeconds = parseInt(duration) * 24 * 60 * 60 // Convert days to seconds
-    await createAuction(nft.id, startingBid, durationInSeconds)
-    if (!auctionError) {
+    if (!startingBid || !duration) {
+      setError("Please fill all fields")
+      return
+    }
+    
+    setIsProcessing(true)
+    clearError()
+    
+    try {
+      // Check if marketplace is approved
+      const isApproved = await checkApproval()
+      
+      if (!isApproved) {
+        const approvalSuccess = await setApproval()
+        if (!approvalSuccess) {
+          setError("Failed to approve marketplace. Please try again.")
+          setIsProcessing(false)
+          return
+        }
+      }
+      
+      const durationInSeconds = parseInt(duration) * 24 * 60 * 60 // Convert days to seconds
+      const priceInWei = BigInt(Math.floor(parseFloat(startingBid) * 1e18))
+      
+      await createAuction(priceInWei, nft.id.toString(), durationInSeconds, isUSDT)
+      
+      // Close modal on success
       onClose()
+    } catch (err) {
+      console.error('Error creating auction:', err)
+      setError("Failed to create auction. Please try again.")
+    } finally {
+      setIsProcessing(false)
     }
   }
 
-  const isLoading = isListing || isCreatingAuction
-  const error = listError || auctionError
+  async function createAuction(startingPrice: bigint, tokenId: string, duration: number, isUSDT: boolean) {
+    try {
+      const auctionHash = await writeContractAsync({
+        abi: nftMarketplaceAbi,
+        address: nftMarketplaceAddress as `0x${string}`,
+        functionName: "createAuction",
+        args: [oceansportAddress, BigInt(tokenId), startingPrice, BigInt(duration), isUSDT],
+      })
+    
+      const auctionReceipt = await waitForTransactionReceipt(config, { hash: auctionHash })
+      if (auctionReceipt) {
+        console.log("Auction successfully created", auctionReceipt.transactionHash)
+      }
+    } catch (error) {
+      console.error("Error creating auction:", error)
+      throw error
+    }
+  }
+
+  async function listNft(price: bigint, tokenId: string, isUSDT: boolean) {
+    try {
+      const listNFTHash = await writeContractAsync({
+        abi: nftMarketplaceAbi,
+        address: nftMarketplaceAddress as `0x${string}`,
+        functionName: "listNFT",
+        args: [oceansportAddress, BigInt(tokenId), price, isUSDT],
+      })
+    
+      const listNFTReceipt = await waitForTransactionReceipt(config, { hash: listNFTHash })
+      if (listNFTReceipt) {
+        console.log("NFT successfully listed", listNFTReceipt.transactionHash)
+      }
+    } catch (error) {
+      console.error("Error listing NFT:", error)
+      throw error
+    }
+  }
+
+  const isLoading = isProcessing || approvalLoading
+  const displayError = error || approvalError
 
   return (
     <AnimatePresence>
@@ -97,36 +214,66 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 </div>
               </div>
 
-              {/* Listing Type Selection */}
+              {/* Currency Selection */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Listing Type
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Payment Currency
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={() => setListingType('fixed')}
-                    className={`p-4 rounded-xl border-2 transition-all ${
-                      listingType === 'fixed'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                    onClick={() => setIsUSDT(false)}
+                    className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                      !isUSDT
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
                         : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                     }`}
                   >
-                    <Tag className="mx-auto mb-2 text-blue-600" size={24} />
-                    <div className="text-sm font-semibold">Fixed Price</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Sell immediately</div>
+                    <Coins size={18} />
+                    <span className="font-medium">ETH</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setIsUSDT(true)}
+                    className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                      isUSDT
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-700'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <DollarSign size={18} />
+                    <span className="font-medium">USDT</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Listing Type Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Listing Type
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setListingType('fixed')}
+                    className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
+                      listingType === 'fixed'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700'
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    <Tag size={18} />
+                    <span className="font-medium">Fixed Price</span>
                   </button>
                   
                   <button
                     onClick={() => setListingType('auction')}
-                    className={`p-4 rounded-xl border-2 transition-all ${
+                    className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
                       listingType === 'auction'
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                        ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-700'
                         : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                     }`}
                   >
-                    <Gavel className="mx-auto mb-2 text-purple-600" size={24} />
-                    <div className="text-sm font-semibold">Auction</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400">Timed bidding</div>
+                    <Gavel size={18} />
+                    <span className="font-medium">Auction</span>
                   </button>
                 </div>
               </div>
@@ -136,12 +283,12 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Price (ETH)
+                      Price ({isUSDT ? 'USDT' : 'ETH'})
                     </label>
                     <input
                       type="number"
                       step="0.001"
-                      placeholder="2.5"
+                      placeholder={isUSDT ? "100" : "2.5"}
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -153,7 +300,7 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                     disabled={!price || isLoading}
                     className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Listing...' : 'List for Fixed Price'}
+                    {isLoading ? 'Processing...' : `List for ${isUSDT ? 'USDT' : 'ETH'}`}
                   </button>
                 </div>
               )}
@@ -163,12 +310,12 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Starting Bid (ETH)
+                      Starting Bid ({isUSDT ? 'USDT' : 'ETH'})
                     </label>
                     <input
                       type="number"
                       step="0.001"
-                      placeholder="1.0"
+                      placeholder={isUSDT ? "50" : "1.0"}
                       value={startingBid}
                       onChange={(e) => setStartingBid(e.target.value)}
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -177,19 +324,18 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Duration
+                      Duration (days)
                     </label>
-                    <select
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      placeholder="7"
                       value={duration}
                       onChange={(e) => setDuration(e.target.value)}
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="1">1 Day</option>
-                      <option value="3">3 Days</option>
-                      <option value="7">7 Days</option>
-                      <option value="14">14 Days</option>
-                      <option value="30">30 Days</option>
-                    </select>
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Enter number of days (1-365)</p>
                   </div>
                   
                   <button
@@ -197,15 +343,21 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                     disabled={!startingBid || isLoading}
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Creating Auction...' : 'Create Auction'}
+                    {isLoading ? 'Processing...' : `Create ${isUSDT ? 'USDT' : 'ETH'} Auction`}
                   </button>
                 </div>
               )}
 
               {/* Error Display */}
-              {error && (
+              {displayError && (
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+                  <p className="text-red-600 dark:text-red-400 text-sm">{displayError}</p>
+                  <button
+                    onClick={clearError}
+                    className="text-red-600 dark:text-red-400 text-sm underline mt-1"
+                  >
+                    Dismiss
+                  </button>
                 </div>
               )}
 
@@ -215,8 +367,8 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                   <Clock className="text-blue-600 mt-0.5" size={16} />
                   <div className="text-sm text-blue-700 dark:text-blue-300">
                     <p className="font-semibold mb-1">Listing Process:</p>
-                    <p>1. Approve marketplace contract</p>
-                    <p>2. {listingType === 'fixed' ? 'List NFT at fixed price' : 'Create timed auction'}</p>
+                    <p>1. Approve marketplace contract (if needed)</p>
+                    <p>2. {listingType === 'fixed' ? `List NFT at fixed ${isUSDT ? 'USDT' : 'ETH'} price` : `Create timed ${isUSDT ? 'USDT' : 'ETH'} auction`}</p>
                     <p>3. NFT appears in marketplace</p>
                   </div>
                 </div>

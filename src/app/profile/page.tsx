@@ -5,18 +5,32 @@ import { Home, ShoppingBag, Plus, User, Edit, Share2, Heart, Eye, Gavel, Tag } f
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { ListNFTModal } from "@/components/ui/list-nft-modal"
 import { motion } from "framer-motion"
-import { useState } from "react"
+import { useState, useEffect} from "react"
 import { readContract } from "@wagmi/core";
 import { oceansportAbi, oceansportAddress } from "@/contracts/constants"
 import { useAccount, useConfig } from "wagmi"
+import { FetchedNFTs } from "@/utils/interfaces"
+import { useRouter } from "next/navigation";
+
+// Updated interface to match the modal's expected format
+interface NFTForModal {
+  id: number
+  title: string
+  image: string
+  currentPrice?: string
+}
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'collected' | 'created' | 'activity'>('collected')
-  const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: any }>({ isOpen: false, nft: null })
-  const [userNFT, setUserNft] = useState("");
+  const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: NFTForModal | null }>({ 
+    isOpen: false, 
+    nft: null 
+  })
+  const [userNFT, setUserNft] = useState<FetchedNFTs[]>([]);
 
   const {address} = useAccount()
   const config = useConfig()
+  const router = useRouter();
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -25,6 +39,10 @@ export default function ProfilePage() {
     { name: 'Create', url: '/create', icon: Plus },
     { name: 'Profile', url: '/profile', icon: User },
   ]
+
+  useEffect(() => {
+    getUserNFTs()
+  }, [address])
 
   async function getUserNFTs() {
     try {
@@ -37,15 +55,13 @@ export default function ProfilePage() {
         args: [address],
       });
 
-      const nftPromises = [];
-
-      for (let i = 0; i < Math.min(3, Number(balance)); i++) {
+      const nftPromises = Array.from({ length: Number(balance) }, async (_, i) => {
         const tokenId = await readContract(config, {
           abi: oceansportAbi,
           address: oceansportAddress as `0x${string}`,
           functionName: "tokenOfOwnerByIndex",
           args: [address, BigInt(i)],
-        });
+        }) as string;
 
         const tokenURI = await readContract(config, {
           abi: oceansportAbi,
@@ -54,52 +70,40 @@ export default function ProfilePage() {
           args: [tokenId],
         });
 
-        // Fetch the metadata from tokenURI (IPFS)
-        const metadata = await fetch(tokenURI).then(res => res.json());
+        const metadata = await fetch(tokenURI as string).then(res => res.json());
 
-        nftPromises.push({
+        const nft: FetchedNFTs = {
           id: tokenId.toString(),
           title: metadata.name || `NFT #${tokenId}`,
           image: metadata.image,
           description: metadata.description || "",
+          price: parseFloat((Math.random() * 3 + 0.5).toFixed(2)), 
           likes: Math.floor(Math.random() * 50),
           views: Math.floor(Math.random() * 200),
-        });
-      }
+        };
 
-      const userNfts = await Promise.all(nftPromises);
-      setUserNft(userNfts);
+        return nft;
+      });
+
+      const resolvedNFTs = await Promise.all(nftPromises);
+      setUserNft(resolvedNFTs);
     } catch (err) {
       console.error("Error fetching NFTs:", err);
     }
   }
 
-  const userNFTs = [
-    {
-      id: 1,
-      title: "Ocean Waves #001",
-      price: "2.5 ETH",
-      image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&h=400&fit=crop&crop=center",
-      likes: 24,
-      views: 156
-    },
-    {
-      id: 2,
-      title: "Deep Sea Explorer",
-      price: "1.8 ETH",
-      image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop&crop=center",
-      likes: 18,
-      views: 89
-    },
-    {
-      id: 3,
-      title: "Coral Reef Dreams",
-      price: "3.2 ETH",
-      image: "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&h=400&fit=crop&crop=center",
-      likes: 31,
-      views: 203
-    }
-  ]
+  // Helper function to convert FetchedNFTs to NFTForModal format
+  const convertToModalFormat = (nft: FetchedNFTs): NFTForModal => ({
+    id: parseInt(nft.id),
+    title: nft.title,
+    image: nft.image,
+    currentPrice: `${nft.price} ETH`
+  })
+
+  const handleListNFT = (nft: FetchedNFTs) => {
+    const modalNFT = convertToModalFormat(nft)
+    setListingModal({ isOpen: true, nft: modalNFT })
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
@@ -118,11 +122,11 @@ export default function ProfilePage() {
               <div className="relative">
                 <div className="w-32 h-32 rounded-full overflow-hidden">
                   <Image
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face"
+                    src="/batman.jpg"
                     alt="Profile"
                     width={128}
                     height={128}
-                    className="object-cover"
+                    className="object-contain"
                   />
                 </div>
                 <button className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors">
@@ -132,10 +136,10 @@ export default function ProfilePage() {
               
               <div className="flex-1 text-center md:text-left">
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-                  OceanExplorer.eth
+                  Joewi.eth
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Marine photographer and digital artist passionate about ocean conservation. 
+                  Computer engineer, blockchain developer and security researcher. 
                   Creating NFTs to raise awareness about the beauty of our underwater world.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start">
@@ -144,7 +148,7 @@ export default function ProfilePage() {
                     <div className="text-sm text-gray-600 dark:text-gray-400">Created</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-cyan-600">8</div>
+                    <div className="text-2xl font-bold text-cyan-600">{userNFT.length}</div>
                     <div className="text-sm text-gray-600 dark:text-gray-400">Collected</div>
                   </div>
                   <div className="text-center">
@@ -209,49 +213,65 @@ export default function ProfilePage() {
               transition={{ duration: 0.8 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {userNFTs.map((nft, index) => (
-                <div
-                  key={nft.id}
-                  className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
-                >
-                  <div className="relative aspect-square">
-                    <Image
-                      src={nft.image}
-                      alt={nft.title}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{nft.title}</h3>
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-xl font-bold text-blue-600">{nft.price}</span>
-                      <div className="flex items-center gap-3 text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <Heart size={14} />
-                          {nft.likes}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Eye size={14} />
-                          {nft.views}
+              {userNFT.length > 0 ? (
+                userNFT.map((nft, index) => (
+                  <div
+                    key={nft.id}
+                    className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    <div className="relative aspect-square">
+                      <Image
+                        src={nft.image}
+                        alt={nft.title}
+                        fill
+                        className="object-contain"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{nft.title}</h3>
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="text-xl font-bold text-blue-600">{nft.price} ETH</span>
+                        <div className="flex items-center gap-3 text-sm text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Heart size={14} />
+                            {nft.likes}
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Eye size={14} />
+                            {nft.views}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
-                        View Details
-                      </button>
-                      <button 
-                        onClick={() => setListingModal({ isOpen: true, nft })}
-                        className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Tag size={14} />
-                        List
-                      </button>
+                      <div className="flex gap-2">
+                        <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                          View Details
+                        </button>
+                        <button 
+                          onClick={() => handleListNFT(nft)}
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Tag size={14} />
+                          List
+                        </button>
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="col-span-full text-center py-12">
+                  <div className="text-6xl mb-4">🌊</div>
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs Found</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-8">
+                    You don't have any NFTs in your collection yet.
+                  </p>
+                  <button
+                    onClick={() => router.push("/marketplace")}
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
+                  >
+                    Explore Marketplace
+                  </button>
                 </div>
-              ))}
+              )}
             </motion.div>
           )}
 
@@ -267,7 +287,10 @@ export default function ProfilePage() {
               <p className="text-gray-600 dark:text-gray-400 mb-8">
                 Start creating your first ocean-inspired NFT and share your art with the world.
               </p>
-              <button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105">
+              <button
+                onClick={() => router.push("/create")}
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
+              >
                 Create Your First NFT
               </button>
             </motion.div>
