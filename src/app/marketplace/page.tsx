@@ -10,6 +10,7 @@ import { readContract, waitForTransactionReceipt } from "@wagmi/core"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi, oceansportAddress } from "@/contracts/constants"
 import { useRouter } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
+import { formatPriceFromWei } from "@/utils/formatPrice"
 
 interface ListedNFT {
   listingId: number
@@ -177,19 +178,7 @@ export default function MarketplacePage() {
     }
   }
 
-  const formatPrice = (price: bigint, isUSDT: boolean) => {
-    const numPrice = Number(price) / 1e18
-    // For USDT (mock contract with 18 decimals), show clean formatting
-    // For ETH, keep up to 4 decimal places
-    let formattedPrice: string
-    if (isUSDT) {
-      // For USDT, show up to 2 decimal places and remove trailing zeros
-      formattedPrice = numPrice.toFixed(2).replace(/\.?0+$/, '')
-    } else {
-      formattedPrice = numPrice.toFixed(4)
-    }
-    return `${formattedPrice} ${isUSDT ? 'USDT' : 'ETH'}`
-  }
+
 
   const filteredNFTs = listedNFTs.filter(nft => {
     const matchesSearch = nft.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -316,7 +305,13 @@ export default function MarketplacePage() {
       {/* NFT Grid */}
       <section className="pb-20 px-4">
         <div className="max-w-6xl mx-auto">
-          {filteredNFTs.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Loading NFTs...</h3>
+              <p className="text-gray-600 dark:text-gray-400">Fetching the latest marketplace listings</p>
+            </div>
+          ) : filteredNFTs.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🌊</div>
               <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs Found</h3>
@@ -373,7 +368,7 @@ export default function MarketplacePage() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-xl font-bold text-blue-600">
-                        {formatPrice(nft.price, nft.isUSDT)}
+                        {formatPriceFromWei(nft.price, nft.isUSDT)}
                       </span>
                       <button
                         onClick={() => handlePurchase(nft.listingId, nft.price, nft.isUSDT)}

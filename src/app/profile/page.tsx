@@ -12,6 +12,7 @@ import { useAccount, useConfig } from "wagmi"
 import { FetchedNFTs } from "@/utils/interfaces"
 import { useRouter, useSearchParams } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
+import { formatPrice } from "@/utils/formatPrice"
 
 // Updated interface to match the modal's expected format
 interface NFTForModal {
@@ -30,22 +31,14 @@ export default function ProfilePage() {
   })
   const [userNFT, setUserNft] = useState<FetchedNFTs[]>([]);
   const [listedNfts, setListedNfts] = useState<FetchedNFTs[]>([]);
+  const [isLoadingNFTs, setIsLoadingNFTs] = useState(true)
+  const [isLoadingListed, setIsLoadingListed] = useState(true);
 
   const {address} = useAccount()
   const config = useConfig()
   const router = useRouter()
 
-  // Price formatting function matching marketplace
-  const formatPrice = (price: number, isUSDT: boolean) => {
-    let formattedPrice: string
-    if (isUSDT) {
-      // For USDT, show up to 2 decimal places and remove trailing zeros
-      formattedPrice = price.toFixed(2).replace(/\.?0+$/, '')
-    } else {
-      formattedPrice = price.toFixed(4)
-    }
-    return `${formattedPrice} ${isUSDT ? 'USDT' : 'ETH'}`
-  };
+
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -58,6 +51,7 @@ export default function ProfilePage() {
   // Fetch listed NFTs from marketplace
   async function getListedNFTs() {
     try {
+      setIsLoadingListed(true)
       if (!address) return console.warn("No connected wallet");
       
       // Get current listing ID to know how many listings exist
@@ -141,6 +135,8 @@ export default function ProfilePage() {
       
     } catch (error) {
       console.error('Error fetching listed NFTs:', error)
+    } finally {
+      setIsLoadingListed(false)
     }
   }
 
@@ -165,6 +161,7 @@ export default function ProfilePage() {
 
   async function getUserNFTs() {
     try {
+      setIsLoadingNFTs(true)
       if (!address) return console.warn("No connected wallet");
 
       const balance = await readContract(config, {
@@ -206,8 +203,10 @@ export default function ProfilePage() {
 
       const resolvedNFTs = await Promise.all(nftPromises);
       setUserNft(resolvedNFTs);
-    } catch (err) {
-      console.error("Error fetching NFTs:", err);
+    } catch (error) {
+      console.error('Error fetching NFTs:', error)
+    } finally {
+      setIsLoadingNFTs(false)
     }
   }
 
@@ -259,7 +258,7 @@ export default function ProfilePage() {
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   Computer engineer, blockchain developer and security researcher. 
-                  Creating NFTs to raise awareness about the beauty of sports and ocean.
+                  Creating NFTs to raise awareness about the beauty of sports and nature as whole.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                   <div className="text-center">
@@ -336,10 +335,16 @@ export default function ProfilePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
             >
-              {userNFT.length > 0 ? (
-                userNFT.map((nft, index) => (
+              {isLoadingNFTs ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                  <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Loading Your Collection...</h3>
+                  <p className="text-gray-600 dark:text-gray-400">Fetching your NFTs from the blockchain</p>
+                </div>
+              ) : userNFT.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {userNFT.map((nft, index) => (
                   <div
                     key={nft.id}
                     className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
@@ -386,13 +391,14 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                ))
+                  ))}
+                </div>
               ) : (
-                <div className="col-span-full text-center py-12">
-                  <div className="text-6xl mb-4">🌊</div>
-                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs Found</h3>
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🎨</div>
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs in Collection</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-8">
-                    You don't have any NFTs in your collection yet.
+                    You haven't collected any NFTs yet. Start exploring the marketplace to find amazing digital art.
                   </p>
                   <button
                     onClick={() => router.push("/marketplace")}
