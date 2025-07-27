@@ -7,7 +7,7 @@ import { ListNFTModal } from "@/components/ui/list-nft-modal"
 import { motion } from "framer-motion"
 import { useState, useEffect} from "react"
 import { readContract } from "@wagmi/core";
-import { oceansportAbi, oceansportAddress } from "@/contracts/constants"
+import { oceansportAbi, oceansportAddress, nftMarketplaceAbi, nftMarketplaceAddress } from "@/contracts/constants"
 import { useAccount, useConfig } from "wagmi"
 import { FetchedNFTs } from "@/utils/interfaces"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -23,16 +23,29 @@ interface NFTForModal {
 
 export default function ProfilePage() {
   const searchParams = useSearchParams()
-  const [activeTab, setActiveTab] = useState<'collected' | 'create' | 'activity'>('collected')
+  const [activeTab, setActiveTab] = useState<'collected' | 'created' | 'listed' | 'activity'>('collected')
   const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: NFTForModal | null }>({ 
     isOpen: false, 
     nft: null 
   })
   const [userNFT, setUserNft] = useState<FetchedNFTs[]>([]);
+  const [listedNfts, setListedNfts] = useState<FetchedNFTs[]>([]);
 
   const {address} = useAccount()
   const config = useConfig()
-  const router = useRouter();
+  const router = useRouter()
+
+  // Price formatting function matching marketplace
+  const formatPrice = (price: number, isUSDT: boolean) => {
+    let formattedPrice: string
+    if (isUSDT) {
+      // For USDT, show up to 2 decimal places and remove trailing zeros
+      formattedPrice = price.toFixed(2).replace(/\.?0+$/, '')
+    } else {
+      formattedPrice = price.toFixed(4)
+    }
+    return `${formattedPrice} ${isUSDT ? 'USDT' : 'ETH'}`
+  };
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -42,6 +55,102 @@ export default function ProfilePage() {
     { name: 'Profile', url: '/profile', icon: User },
   ]
 
+  // Fetch listed NFTs from marketplace
+  async function getListedNFTs() {
+    try {
+      if (!address) return console.warn("No connected wallet");
+      
+      // Get current listing ID to know how many listings exist
+      const currentListingId = await readContract(config, {
+        abi: nftMarketplaceAbi,
+        address: nftMarketplaceAddress as `0x${string}`,
+        functionName: "getListingId",
+      }) as bigint
+
+      const listingPromises = []
+      
+      // Fetch all listings
+      for (let i = 1; i <= Number(currentListingId); i++) {
+        listingPromises.push(
+          readContract(config, {
+            abi: nftMarketplaceAbi,
+            address: nftMarketplaceAddress as `0x${string}`,
+            functionName: "getListing",
+            args: [BigInt(i)],
+          })
+        )
+      }
+
+      const listings = await Promise.all(listingPromises)
+      
+      // Filter listings by current user and active status
+      const userListings = listings
+        .map((listing: any, index: number) => ({
+          listingId: index + 1,
+          nftContract: listing.nftContract,
+          tokenId: listing.tokenId.toString(),
+          seller: listing.seller,
+          price: listing.price,
+          isUSDT: listing.isUSDT,
+          active: listing.active,
+        }))
+        .filter((listing: any) => 
+          listing.active && 
+          listing.seller.toLowerCase() === address.toLowerCase() &&
+          listing.nftContract !== "0x0000000000000000000000000000000000000000"
+        )
+
+      // Fetch metadata for each user listing
+      const listedNFTPromises = userListings.map(async (listing: any) => {
+        try {
+          const tokenURI = await readContract(config, {
+            abi: oceansportAbi,
+            address: listing.nftContract as `0x${string}`,
+            functionName: "tokenURI",
+            args: [BigInt(listing.tokenId)],
+          })
+
+          const metadata = await fetch(tokenURI as string).then(res => res.json())
+          
+          return {
+            id: listing.tokenId,
+            title: metadata.name || `NFT #${listing.tokenId}`,
+            image: metadata.image || '',
+            description: metadata.description || '',
+            price: Number(listing.price) / 1e18,
+            likes: 0,
+            views: 0,
+            listingId: listing.listingId,
+            isUSDT: listing.isUSDT,
+            priceString: formatPrice(Number(listing.price) / 1e18, listing.isUSDT)
+          }
+        } catch (error) {
+          console.error(`Error fetching metadata for listing ${listing.listingId}:`, error)
+          return null
+        }
+      })
+
+      const resolvedListedNFTs = await Promise.all(listedNFTPromises)
+      const validListedNFTs = resolvedListedNFTs.filter((nft: any) => 
+        nft && 
+        nft.image && 
+        nft.title !== `NFT #${nft.id}`
+      ) as FetchedNFTs[]
+      
+      setListedNfts(validListedNFTs)
+      
+    } catch (error) {
+      console.error('Error fetching listed NFTs:', error)
+    }
+  }
+
+  useEffect(() => {
+    if (address) {
+      getUserNFTs()
+      getListedNFTs()
+    }
+  }, [address])
+
   useEffect(() => {
     getUserNFTs()
   }, [address])
@@ -49,8 +158,8 @@ export default function ProfilePage() {
   // Handle URL tab parameter
   useEffect(() => {
     const tab = searchParams.get('tab')
-    if (tab && ['collected', 'create', 'activity'].includes(tab)) {
-      setActiveTab(tab as 'collected' | 'create' | 'activity')
+    if (tab && ['collected', 'created', 'listed', 'activity'].includes(tab)) {
+      setActiveTab(tab as 'collected' | 'created' | 'listed' | 'activity')
     }
   }, [searchParams])
 
@@ -132,11 +241,11 @@ export default function ProfilePage() {
               <div className="relative">
                 <div className="w-32 h-32 rounded-full overflow-hidden">
                   <Image
-                    src="/batman.jpg"
+                    src="/batman avi.jpg"
                     alt="Profile"
                     width={128}
                     height={128}
-                    className="object-contain"
+                    className="object-cover w-full h-full"
                   />
                 </div>
                 <button className="absolute bottom-0 right-0 bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors">
@@ -198,7 +307,8 @@ export default function ProfilePage() {
             <div className="flex">
               {[
                 { key: 'collected', label: 'Collected' },
-                { key: 'create', label: 'Create' },
+                { key: 'created', label: 'Created' },
+                { key: 'listed', label: 'Listed' },
                 { key: 'activity', label: 'Activity' }
               ].map((tab) => (
                 <button
@@ -295,7 +405,7 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {activeTab === 'create' && (
+          {activeTab === 'created' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -313,6 +423,71 @@ export default function ProfilePage() {
               >
                 Create Your First NFT
               </button>
+            </motion.div>
+          )}
+
+          {activeTab === 'listed' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              {listedNfts.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {listedNfts.map((nft: any) => (
+                    <motion.div
+                      key={nft.id}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5 }}
+                      className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105"
+                    >
+                      <div className="relative aspect-square">
+                        <Image
+                          src={nft.image}
+                          alt={nft.title}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                          LISTED
+                        </div>
+                      </div>
+                      <div className="p-6">
+                        <h3 className="font-bold text-xl text-gray-800 dark:text-white mb-2 truncate">{nft.title}</h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm line-clamp-2">{nft.description}</p>
+                        <div className="flex justify-between items-center mb-4">
+                          <div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">Listed Price</div>
+                            <div className="text-lg font-bold text-green-600">{nft.priceString}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">Status</div>
+                            <div className="text-sm font-semibold text-green-600">Active</div>
+                          </div>
+                        </div>
+                        <button className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition-colors text-sm font-semibold">
+                          Cancel Listing
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">🏷️</div>
+                  <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No Listed NFTs</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-8">
+                    You haven't listed any NFTs for sale yet. Start by listing one of your collected NFTs.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab('collected')}
+                    className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
+                  >
+                    View Your Collection
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
 

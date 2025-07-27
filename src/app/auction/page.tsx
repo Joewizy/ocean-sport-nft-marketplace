@@ -5,6 +5,23 @@ import { Home, ShoppingBag, Plus, User, Clock, Gavel, TrendingUp, Users } from "
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
+import { useConfig } from "wagmi"
+import { readContract } from "@wagmi/core"
+import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contracts/constants"
+
+interface LiveAuction {
+  id: number
+  title: string
+  artist: string
+  currentBid: string
+  currentBidUSD?: string
+  bidCount: number
+  timeLeft: string
+  image: string
+  description?: string
+  endTime: number
+  bidHistory?: Array<{ bidder: string; amount: string; time: string }>
+}
 
 export default function AuctionPage() {
   const [timeLeft, setTimeLeft] = useState({
@@ -13,6 +30,11 @@ export default function AuctionPage() {
     minutes: 32,
     seconds: 45
   })
+  const [liveAuctions, setLiveAuctions] = useState<LiveAuction[]>([])
+  const [featuredAuction, setFeaturedAuction] = useState<LiveAuction | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  
+  const config = useConfig()
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -21,6 +43,11 @@ export default function AuctionPage() {
     { name: 'Create', url: '/create', icon: Plus },
     { name: 'Profile', url: '/profile', icon: User },
   ]
+
+  // Fetch auctions on component mount
+  useEffect(() => {
+    fetchAuctions()
+  }, [])
 
   // Countdown timer effect
   useEffect(() => {
@@ -42,50 +69,145 @@ export default function AuctionPage() {
     return () => clearInterval(timer)
   }, [])
 
-  const liveAuctions = [
-    {
-      id: 1,
-      title: "Whale Migration #003",
-      artist: "OceanWatcher",
-      currentBid: "5.2 ETH",
-      bidCount: 12,
-      timeLeft: "2d 14h 32m",
-      image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=400&h=400&fit=crop&crop=center"
-    },
-    {
-      id: 2,
-      title: "Coral Garden Dreams",
-      artist: "ReefArtist",
-      currentBid: "3.8 ETH",
-      bidCount: 8,
-      timeLeft: "1d 8h 15m",
-      image: "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&h=400&fit=crop&crop=center"
-    },
-    {
-      id: 3,
-      title: "Deep Sea Mystery",
-      artist: "AbyssalCreator",
-      currentBid: "7.1 ETH",
-      bidCount: 18,
-      timeLeft: "3d 2h 45m",
-      image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop&crop=center"
-    }
-  ]
+  // Fetch live auctions from blockchain
+  const fetchAuctions = async () => {
+    try {
+      setIsLoading(true)
+      
+      // Get current auction ID to know how many auctions exist
+      const currentAuctionId = await readContract(config, {
+        abi: nftMarketplaceAbi,
+        address: nftMarketplaceAddress as `0x${string}`,
+        functionName: "getAuctionId",
+      }) as bigint
 
-  const featuredAuction = {
-    id: 1,
-    title: "Whale Migration #003",
-    artist: "OceanWatcher",
-    description: "A breathtaking capture of humpback whales during their annual migration. This rare moment showcases the majestic beauty of these gentle giants as they traverse the deep blue ocean.",
-    currentBid: "5.2 ETH",
-    currentBidUSD: "$8,840",
-    bidCount: 12,
-    image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
-    bidHistory: [
-      { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
-      { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
-      { bidder: "0x9876...1234", amount: "4.8 ETH", time: "1 hour ago" },
-    ]
+      const auctionPromises = []
+      
+      // Fetch all auctions
+      for (let i = 1; i <= Number(currentAuctionId); i++) {
+        auctionPromises.push(
+          readContract(config, {
+            abi: nftMarketplaceAbi,
+            address: nftMarketplaceAddress as `0x${string}`,
+            functionName: "getAuction",
+            args: [BigInt(i)],
+          })
+        )
+      }
+
+      const auctions = await Promise.all(auctionPromises)
+      
+      // Filter active auctions and fetch metadata
+      const activeAuctions = auctions
+        .map((auction: any, index) => ({
+          auctionId: index + 1,
+          nftContract: auction.nftContract,
+          tokenId: auction.tokenId.toString(),
+          seller: auction.seller,
+          startingPrice: auction.startingPrice,
+          currentBid: auction.currentBid,
+          endTime: Number(auction.endTime),
+          isUSDT: auction.isUSDT,
+          active: auction.active,
+        }))
+        .filter(auction => auction.active && auction.nftContract !== "0x0000000000000000000000000000000000000000")
+
+      // Fetch metadata for each active auction
+      const auctionDataPromises = activeAuctions.map(async (auction) => {
+        try {
+          const tokenURI = await readContract(config, {
+            abi: oceansportAbi,
+            address: auction.nftContract as `0x${string}`,
+            functionName: "tokenURI",
+            args: [BigInt(auction.tokenId)],
+          })
+
+          const metadata = await fetch(tokenURI as string).then(res => res.json())
+          
+          const currentTime = Math.floor(Date.now() / 1000)
+          const timeRemaining = auction.endTime - currentTime
+          const days = Math.floor(timeRemaining / 86400)
+          const hours = Math.floor((timeRemaining % 86400) / 3600)
+          const minutes = Math.floor((timeRemaining % 3600) / 60)
+          
+          const currentBidAmount = Number(auction.currentBid) / 1e18
+          const hasBids = currentBidAmount > 0
+          
+          return {
+            id: auction.auctionId,
+            title: metadata.name || `NFT #${auction.tokenId}`,
+            image: metadata.image || '',
+            description: metadata.description || '',
+            artist: auction.seller.slice(0,10),
+            currentBid: hasBids ? `${currentBidAmount.toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}` : '',
+            bidCount: hasBids ? 1 : 0, // Simple bid count
+            timeLeft: timeRemaining > 0 ? `${days}d ${hours}h ${minutes}m` : 'Ended',
+            endTime: auction.endTime,
+            hasBids: hasBids
+          }
+        } catch (error) {
+          console.error(`Error fetching metadata for auction ${auction.auctionId}:`, error)
+          return null
+        }
+      })
+
+      const resolvedAuctions = await Promise.all(auctionDataPromises)
+      const validAuctions = resolvedAuctions.filter(auction => 
+        auction && 
+        auction.image && 
+        auction.title !== `NFT #${auction.id}` &&
+        auction.timeLeft !== 'Ended'
+      ) as LiveAuction[]
+      
+      setLiveAuctions(validAuctions)
+      
+      // Set featured auction (first valid auction or fallback)
+      if (validAuctions.length > 0) {
+        setFeaturedAuction(validAuctions[0])
+      } else {
+        // Fallback featured auction if no real auctions
+        setFeaturedAuction({
+          id: 1,
+          title: "Whale Migration #003",
+          artist: "OceanWatcher",
+          description: "A breathtaking capture of humpback whales during their annual migration. This rare moment showcases the majestic beauty of these gentle giants as they traverse the deep blue ocean.",
+          currentBid: "5.2 ETH",
+          currentBidUSD: "$8,840",
+          bidCount: 12,
+          timeLeft: "2d 14h 32m",
+          image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
+          endTime: Math.floor(Date.now() / 1000) + 86400 * 2,
+          bidHistory: [
+            { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
+            { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
+            { bidder: "0x9876...1234", amount: "4.8 ETH", time: "1 hour ago" },
+          ]
+        })
+      }
+      
+    } catch (error) {
+      console.error('Error fetching auctions:', error)
+      // Set fallback data on error
+      setFeaturedAuction({
+        id: 1,
+        title: "Whale Migration #003",
+        artist: "OceanWatcher",
+        description: "A breathtaking capture of humpback whales during their annual migration. This rare moment showcases the majestic beauty of these gentle giants as they traverse the deep blue ocean.",
+        currentBid: "5.2 ETH",
+        currentBidUSD: "$8,840",
+        bidCount: 12,
+        timeLeft: "2d 14h 32m",
+        image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
+        endTime: Math.floor(Date.now() / 1000) + 86400 * 2,
+        bidHistory: [
+          { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
+          { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
+          { bidder: "0x9876...1234", amount: "4.8 ETH", time: "1 hour ago" },
+        ]
+      })
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -114,6 +236,7 @@ export default function AuctionPage() {
       {/* Featured Auction */}
       <section className="pb-12 px-4">
         <div className="max-w-6xl mx-auto">
+          {featuredAuction && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -136,15 +259,15 @@ export default function AuctionPage() {
               </div>
 
               {/* Auction Details */}
-              <div className="space-y-4">
+              <div className="space-y-3 flex flex-col justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-2">
                     {featuredAuction.title}
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm">
+                  <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm">
                     by {featuredAuction.artist}
                   </p>
-                  <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-3">
+                  <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-2">
                     {featuredAuction.description}
                   </p>
                 </div>
@@ -212,7 +335,7 @@ export default function AuctionPage() {
                 <div>
                   <h4 className="font-semibold text-gray-800 dark:text-white mb-3">Recent Bids</h4>
                   <div className="space-y-2">
-                    {featuredAuction.bidHistory.map((bid, index) => (
+                    {featuredAuction.bidHistory?.map((bid: any, index: number) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
                         <div>
                           <div className="font-mono text-sm text-blue-600">{bid.bidder}</div>
@@ -226,6 +349,7 @@ export default function AuctionPage() {
               </div>
             </div>
           </motion.div>
+          )}
         </div>
       </section>
 
@@ -276,8 +400,17 @@ export default function AuctionPage() {
                   
                   <div className="flex justify-between items-center mb-3">
                     <div>
-                      <div className="text-xs text-gray-600 dark:text-gray-400">Current Bid</div>
-                      <div className="text-lg font-bold text-blue-600">{auction.currentBid}</div>
+                      {(auction as any).hasBids ? (
+                        <>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Current Bid</div>
+                          <div className="text-lg font-bold text-blue-600">{auction.currentBid}</div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-xs text-gray-600 dark:text-gray-400">Starting Price</div>
+                          <div className="text-lg font-bold text-gray-600">No bids yet</div>
+                        </>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-gray-600 dark:text-gray-400">{auction.bidCount} bids</div>

@@ -78,12 +78,12 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
       await listNft(priceInWei, nft.id.toString(), isUSDT)
       
       // Show success toast and redirect
-      toast.success('NFT listed successfully! 🎉')
+      toast.success('NFT listed successfully!')
       onClose()
       
-      // Redirect to profile page with created tab
+      // Redirect to profile page with listed tab
       setTimeout(() => {
-        router.push('/profile?tab=created')
+        router.push('/profile?tab=listed')
       }, 1500)
     } catch (err) {
       console.error('Error listing NFT:', err)

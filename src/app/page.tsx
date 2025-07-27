@@ -5,8 +5,11 @@ import { Home, ShoppingBag, Plus, User, TrendingUp, Search, Gavel } from "lucide
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { Typewriter } from "@/components/ui/typewriter"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 
 export default function HomePage() {
+  const router = useRouter()
+  
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
@@ -39,10 +42,10 @@ export default function HomePage() {
     },
     {
       id: 4,
-      title: "Abstract Geometry",
-      artist: "ModernArt",
+      title: "Batman Beyond Wallpaper",
+      artist: "Bob Kane",
       price: "4.1 ETH",
-      image: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=400&fit=crop&crop=center"
+      image: "/wallpapersden.com_batman-beyond-key-art_3148x1346.jpg"
     }
   ]
 
@@ -108,11 +111,17 @@ export default function HomePage() {
             transition={{ duration: 0.8, delay: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center items-center"
           >
-            <button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg">
+            <button 
+              onClick={() => router.push('/marketplace')}
+              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
               <ShoppingBag className="inline-block mr-2" size={20} />
               Explore Marketplace
             </button>
-            <button className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+            <button 
+              onClick={() => router.push('/create')}
+              className="border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105"
+            >
               <Plus className="inline-block mr-2" size={20} />
               Create NFT
             </button>
@@ -222,13 +231,19 @@ export default function HomePage() {
               Join thousands of artists and collectors in the world's most vibrant NFT marketplace for all types of digital art.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
+              <button 
+                onClick={() => router.push('/marketplace')}
+                className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105"
+              >
                 <Search className="inline-block mr-2" size={20} />
-                Browse Collections
+                Explore Marketplace
               </button>
-              <button className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
-                <User className="inline-block mr-2" size={20} />
-                Join Community
+              <button 
+                onClick={() => router.push('/create')}
+                className="border-2 border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105"
+              >
+                <Plus className="inline-block mr-2" size={20} />
+                Create NFT
               </button>
             </div>
           </motion.div>
