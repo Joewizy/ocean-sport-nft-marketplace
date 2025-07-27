@@ -10,7 +10,8 @@ import { readContract } from "@wagmi/core";
 import { oceansportAbi, oceansportAddress } from "@/contracts/constants"
 import { useAccount, useConfig } from "wagmi"
 import { FetchedNFTs } from "@/utils/interfaces"
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"
+import toast, { Toaster } from 'react-hot-toast'
 
 // Updated interface to match the modal's expected format
 interface NFTForModal {
@@ -21,7 +22,8 @@ interface NFTForModal {
 }
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<'collected' | 'created' | 'activity'>('collected')
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState<'collected' | 'create' | 'activity'>('collected')
   const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: NFTForModal | null }>({ 
     isOpen: false, 
     nft: null 
@@ -43,6 +45,14 @@ export default function ProfilePage() {
   useEffect(() => {
     getUserNFTs()
   }, [address])
+
+  // Handle URL tab parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['collected', 'create', 'activity'].includes(tab)) {
+      setActiveTab(tab as 'collected' | 'create' | 'activity')
+    }
+  }, [searchParams])
 
   async function getUserNFTs() {
     try {
@@ -140,12 +150,12 @@ export default function ProfilePage() {
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">
                   Computer engineer, blockchain developer and security researcher. 
-                  Creating NFTs to raise awareness about the beauty of our underwater world.
+                  Creating NFTs to raise awareness about the beauty of sports and ocean.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">12</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">Created</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Create</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-cyan-600">{userNFT.length}</div>
@@ -159,9 +169,14 @@ export default function ProfilePage() {
               </div>
               
               <div className="flex gap-3">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                <a 
+                  href="https://twitter.com/BruceWayne82118"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+                >
                   Follow
-                </button>
+                </a>
                 <button className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2 rounded-lg transition-colors">
                   <Share2 size={18} />
                 </button>
@@ -183,7 +198,7 @@ export default function ProfilePage() {
             <div className="flex">
               {[
                 { key: 'collected', label: 'Collected' },
-                { key: 'created', label: 'Created' },
+                { key: 'create', label: 'Create' },
                 { key: 'activity', label: 'Activity' }
               ].map((tab) => (
                 <button
@@ -229,6 +244,11 @@ export default function ProfilePage() {
                     </div>
                     <div className="p-4">
                       <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{nft.title}</h3>
+                      {nft.description && (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-2">
+                          {nft.description}
+                        </p>
+                      )}
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-xl font-bold text-blue-600">{nft.price} ETH</span>
                         <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -275,7 +295,7 @@ export default function ProfilePage() {
             </motion.div>
           )}
 
-          {activeTab === 'created' && (
+          {activeTab === 'create' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -334,6 +354,32 @@ export default function ProfilePage() {
         isOpen={listingModal.isOpen}
         onClose={() => setListingModal({ isOpen: false, nft: null })}
         nft={listingModal.nft || { id: 0, title: '', image: '' }}
+      />
+      
+      {/* Toast Container */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
       />
     </div>
   )

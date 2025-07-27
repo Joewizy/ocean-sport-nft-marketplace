@@ -8,6 +8,8 @@ import { useState, useEffect } from "react"
 import { useConfig, useAccount, useWriteContract } from "wagmi"
 import { readContract, waitForTransactionReceipt } from "@wagmi/core"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi, oceansportAddress } from "@/contracts/constants"
+import { useRouter } from "next/navigation"
+import toast, { Toaster } from 'react-hot-toast'
 
 interface ListedNFT {
   listingId: number
@@ -35,6 +37,7 @@ export default function MarketplacePage() {
   const config = useConfig()
   const account = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const router = useRouter()
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -119,8 +122,19 @@ export default function MarketplacePage() {
         }
       })
 
-      const nftsWithMetadata = await Promise.all(nftDataPromises)
-      setListedNFTs(nftsWithMetadata)
+      const resolvedNFTs = await Promise.all(nftDataPromises)
+      
+      // Filter out NFTs with invalid data
+      const validNFTs = resolvedNFTs.filter(nft => 
+        nft.image && 
+        nft.image !== '' && 
+        nft.title && 
+        nft.title !== `NFT #${nft.tokenId}` &&
+        nft.artist !== 'Unknown Artist' &&
+        nft.description !== ''
+      )
+      
+      setListedNFTs(validNFTs)
     } catch (error) {
       console.error('Error fetching listed NFTs:', error)
     } finally {
@@ -148,19 +162,32 @@ export default function MarketplacePage() {
       const receipt = await waitForTransactionReceipt(config, { hash: buyHash })
       
       if (receipt) {
-        alert('NFT purchased successfully!')
+        toast.success('NFT purchased successfully! 🎉')
         fetchListedNFTs() // Refresh the listings
+        // Redirect to profile page with collected tab
+        setTimeout(() => {
+          router.push('/profile?tab=collected')
+        }, 1500)
       }
     } catch (error) {
       console.error('Error purchasing NFT:', error)
-      alert('Failed to purchase NFT. Please try again.')
+      toast.error('Failed to purchase NFT. Please try again.')
     } finally {
       setIsProcessingPurchase(null)
     }
   }
 
   const formatPrice = (price: bigint, isUSDT: boolean) => {
-    const formattedPrice = (Number(price) / 1e18).toFixed(4)
+    const numPrice = Number(price) / 1e18
+    // For USDT (mock contract with 18 decimals), show clean formatting
+    // For ETH, keep up to 4 decimal places
+    let formattedPrice: string
+    if (isUSDT) {
+      // For USDT, show up to 2 decimal places and remove trailing zeros
+      formattedPrice = numPrice.toFixed(2).replace(/\.?0+$/, '')
+    } else {
+      formattedPrice = numPrice.toFixed(4)
+    }
     return `${formattedPrice} ${isUSDT ? 'USDT' : 'ETH'}`
   }
 
@@ -298,7 +325,7 @@ export default function MarketplacePage() {
               </p>
             </div>
           ) : (
-            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-8`}>
+            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
               {filteredNFTs.map((nft, index) => (
                 <motion.div
                   key={nft.listingId}
@@ -306,16 +333,16 @@ export default function MarketplacePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: index * 0.1 }}
                   className={`bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 ${
-                    viewMode === 'list' ? 'flex flex-row' : ''
+                    viewMode === 'list' ? 'flex flex-row items-stretch' : 'flex flex-col'
                   }`}
                 >
-                  <div className={`relative ${viewMode === 'list' ? 'w-48 h-48' : 'aspect-square'}`}>
+                  <div className={`relative ${viewMode === 'list' ? 'w-32 h-32' : 'aspect-square'}`}>
                     {nft.image ? (
                       <Image
                         src={nft.image}
                         alt={nft.title}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
@@ -332,22 +359,26 @@ export default function MarketplacePage() {
                       </div>
                     </div>
                   </div>
-                  <div className={`p-6 ${viewMode === 'list' ? 'flex-1 flex flex-col justify-between' : ''}`}>
+                  <div className={`p-5 ${viewMode === 'list' ? 'flex-1 flex flex-col justify-between min-h-0' : 'flex-1 flex flex-col'}`}>
                     <div>
-                      <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{nft.title}</h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">by {nft.artist}</p>
-                      {nft.description && viewMode === 'list' && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2">{nft.description}</p>
+                      <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2 truncate">{nft.title}</h3>
+                      <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm truncate">by {nft.artist}</p>
+                      {nft.description && (
+                        <p className={`text-sm text-gray-500 dark:text-gray-400 mb-4 ${
+                          viewMode === 'list' ? 'line-clamp-2' : 'line-clamp-3'
+                        }`}>
+                          {nft.description}
+                        </p>
                       )}
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-blue-600">
+                      <span className="text-xl font-bold text-blue-600">
                         {formatPrice(nft.price, nft.isUSDT)}
                       </span>
                       <button
                         onClick={() => handlePurchase(nft.listingId, nft.price, nft.isUSDT)}
                         disabled={isProcessingPurchase === nft.listingId || nft.seller.toLowerCase() === account.address?.toLowerCase()}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg transition-colors"
+                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg transition-colors text-sm"
                       >
                         {isProcessingPurchase === nft.listingId ? 'Processing...' : 
                          nft.seller.toLowerCase() === account.address?.toLowerCase() ? 'Your NFT' : 'Buy Now'}
@@ -360,6 +391,32 @@ export default function MarketplacePage() {
           )}
         </div>
       </section>
+      
+      {/* Toast Container */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   )
 }

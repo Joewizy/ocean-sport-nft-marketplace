@@ -8,6 +8,8 @@ import { waitForTransactionReceipt } from "@wagmi/core"
 import { useAccount, useWriteContract } from "wagmi"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAddress } from "@/contracts/constants"
 import { useMarketplaceApproval } from "@/hooks/useNFT"
+import { useRouter } from "next/navigation"
+import toast from 'react-hot-toast'
 
 interface ListNFTModalProps {
   isOpen: boolean
@@ -32,6 +34,7 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
   const config = useConfig()
   const account = useAccount()
   const { writeContractAsync } = useWriteContract()
+  const router = useRouter()
   
   // Use our custom approval hook
   const { 
@@ -74,10 +77,17 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
       
       await listNft(priceInWei, nft.id.toString(), isUSDT)
       
-      // Close modal on success
+      // Show success toast and redirect
+      toast.success('NFT listed successfully! 🎉')
       onClose()
+      
+      // Redirect to profile page with created tab
+      setTimeout(() => {
+        router.push('/profile?tab=created')
+      }, 1500)
     } catch (err) {
       console.error('Error listing NFT:', err)
+      toast.error('Failed to list NFT. Please try again.')
       setError("Failed to list NFT. Please try again.")
     } finally {
       setIsProcessing(false)
@@ -111,10 +121,17 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
       
       await createAuction(priceInWei, nft.id.toString(), durationInSeconds, isUSDT)
       
-      // Close modal on success
+      // Show success toast and redirect
+      toast.success('Auction created successfully! 🎉')
       onClose()
+      
+      // Redirect to auction page
+      setTimeout(() => {
+        router.push('/auction')
+      }, 1500)
     } catch (err) {
       console.error('Error creating auction:', err)
+      toast.error('Failed to create auction. Please try again.')
       setError("Failed to create auction. Please try again.")
     } finally {
       setIsProcessing(false)
@@ -326,16 +343,20 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Duration (days)
                     </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="365"
-                      placeholder="7"
+                    <select
                       value={duration}
                       onChange={(e) => setDuration(e.target.value)}
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Enter number of days (1-365)</p>
+                    >
+                      <option value="1">1 Day</option>
+                      <option value="3">3 Days</option>
+                      <option value="7">7 Days (1 Week)</option>
+                      <option value="14">14 Days (2 Weeks)</option>
+                      <option value="30">30 Days (1 Month)</option>
+                      <option value="60">60 Days (2 Months)</option>
+                      <option value="90">90 Days (3 Months)</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Choose auction duration</p>
                   </div>
                   
                   <button

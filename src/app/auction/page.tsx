@@ -118,11 +118,11 @@ export default function AuctionPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-8 shadow-lg mb-12"
+            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl overflow-hidden shadow-2xl"
           >
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
               {/* Auction Image */}
-              <div className="relative aspect-square rounded-xl overflow-hidden">
+              <div className="relative aspect-[3/2] rounded-xl overflow-hidden">
                 <Image
                   src={featuredAuction.image}
                   alt={featuredAuction.title}
@@ -136,41 +136,41 @@ export default function AuctionPage() {
               </div>
 
               {/* Auction Details */}
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
+                  <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
                     {featuredAuction.title}
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm">
                     by {featuredAuction.artist}
                   </p>
-                  <p className="text-gray-700 dark:text-gray-300">
+                  <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-3">
                     {featuredAuction.description}
                   </p>
                 </div>
 
                 {/* Countdown Timer */}
-                <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl p-6 text-white">
-                  <div className="text-center mb-4">
-                    <Clock className="mx-auto mb-2" size={24} />
-                    <h3 className="text-lg font-semibold">Auction Ends In</h3>
+                <div className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-lg p-3 text-white">
+                  <div className="text-center mb-2">
+                    <Clock className="mx-auto mb-1" size={18} />
+                    <h3 className="text-sm font-semibold">Auction Ends In</h3>
                   </div>
-                  <div className="grid grid-cols-4 gap-4 text-center">
+                  <div className="grid grid-cols-4 gap-1 text-center">
                     <div>
-                      <div className="text-2xl font-bold">{timeLeft.days}</div>
-                      <div className="text-sm opacity-80">Days</div>
+                      <div className="text-lg font-bold">{timeLeft.days}</div>
+                      <div className="text-xs opacity-80">Days</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{timeLeft.hours}</div>
-                      <div className="text-sm opacity-80">Hours</div>
+                      <div className="text-lg font-bold">{timeLeft.hours}</div>
+                      <div className="text-xs opacity-80">Hours</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{timeLeft.minutes}</div>
-                      <div className="text-sm opacity-80">Minutes</div>
+                      <div className="text-lg font-bold">{timeLeft.minutes}</div>
+                      <div className="text-xs opacity-80">Minutes</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold">{timeLeft.seconds}</div>
-                      <div className="text-sm opacity-80">Seconds</div>
+                      <div className="text-lg font-bold">{timeLeft.seconds}</div>
+                      <div className="text-xs opacity-80">Seconds</div>
                     </div>
                   </div>
                 </div>
@@ -270,23 +270,23 @@ export default function AuctionPage() {
                     <Clock className="text-white" size={16} />
                   </div>
                 </div>
-                <div className="p-6">
-                  <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2">{auction.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">by {auction.artist}</p>
+                <div className="p-4">
+                  <h3 className="font-bold text-base text-gray-800 dark:text-white mb-1 truncate">{auction.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-3 text-sm truncate">by {auction.artist}</p>
                   
-                  <div className="flex justify-between items-center mb-4">
+                  <div className="flex justify-between items-center mb-3">
                     <div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Current Bid</div>
-                      <div className="text-xl font-bold text-blue-600">{auction.currentBid}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">Current Bid</div>
+                      <div className="text-lg font-bold text-blue-600">{auction.currentBid}</div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-gray-600 dark:text-gray-400">{auction.bidCount} bids</div>
-                      <div className="text-sm font-semibold text-red-600">{auction.timeLeft}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-400">{auction.bidCount} bids</div>
+                      <div className="text-xs font-semibold text-red-600">{auction.timeLeft}</div>
                     </div>
                   </div>
                   
-                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
-                    <Gavel className="inline-block mr-2" size={16} />
+                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded-lg transition-colors text-sm">
+                    <Gavel className="inline-block mr-1" size={14} />
                     Place Bid
                   </button>
                 </div>

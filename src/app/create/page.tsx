@@ -1,13 +1,15 @@
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel, ExternalLink, CheckCircle } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState } from "react"
 import { useAccount, useConfig, useWriteContract } from "wagmi"
 import { oceansportAbi, oceansportAddress } from "@/contracts/constants"
 import { waitForTransactionReceipt } from "@wagmi/core"
+import { useRouter } from "next/navigation"
+import toast, { Toaster } from 'react-hot-toast'
 
 export default function CreatePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -20,6 +22,7 @@ export default function CreatePage() {
   const account = useAccount()
   const config = useConfig()
   const { writeContractAsync } = useWriteContract()
+  const router = useRouter()
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
@@ -40,7 +43,7 @@ export default function CreatePage() {
 
   async function handleMint() {
     if (!name || !selectedFile) {
-      alert("Please enter a name and upload a file.")
+      toast.error("Please enter a name and upload a file.")
       return
     }
 
@@ -71,10 +74,27 @@ export default function CreatePage() {
 
       const receipt = await waitForTransactionReceipt(config, { hash: mintHash })
       setNftTx(receipt.transactionHash)
-      alert("NFT successfully minted!")
+      toast.success(
+        <div className="flex flex-col gap-2">
+          <span>NFT successfully minted! 🎉</span>
+          <a 
+            href={`https://sepolia.basescan.org/tx/${receipt.transactionHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline text-sm flex items-center gap-1"
+          >
+            View transaction <ExternalLink size={12} />
+          </a>
+        </div>,
+        { duration: 6000 }
+      )
+
+      setTimeout(() => {
+        router.push('/profile?tab=collected')
+      }, 3000)
     } catch (err) {
       console.error("Minting failed:", err)
-      alert("Could not mint NFT")
+      toast.error("Could not mint NFT. Please try again.")
     } finally {
       setIsUploading(false)
     }
@@ -133,7 +153,7 @@ export default function CreatePage() {
                   )}
                   <input
                     type="file"
-                    accept="image/*,video/*,audio/*,.glb,.gltf"
+                    accept="image/*"
                     onChange={handleFileSelect}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
@@ -166,13 +186,47 @@ export default function CreatePage() {
                     />
                   </div>
 
+                  {/* Success Message with Transaction Link */}
+                  {nftTx && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <CheckCircle className="text-green-600" size={20} />
+                        <span className="font-semibold text-green-800 dark:text-green-200">
+                          NFT Minted Successfully!
+                        </span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <a
+                          href={`https://sepolia.etherscan.io/tx/${nftTx}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                        >
+                          <ExternalLink size={16} />
+                          View Transaction
+                        </a>
+                        <button
+                          onClick={() => router.push('/profile?tab=created')}
+                          className="flex items-center gap-2 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 font-medium"
+                        >
+                          <User size={16} />
+                          View in Profile
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+
                   <div className="pt-6">
                     <button
                       onClick={handleMint}
-                      disabled={isUploading}
-                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105"
+                      disabled={isUploading || !!nftTx}
+                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                     >
-                      {isUploading ? "Uploading & Minting..." : "Mint NFT"}
+                      {isUploading ? "Uploading & Minting..." : nftTx ? "NFT Minted!" : "Mint NFT"}
                     </button>
                   </div>
                 </div>
@@ -209,6 +263,32 @@ export default function CreatePage() {
           </motion.div>
         </div>
       </section>
+      
+      {/* Toast Container */}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#4ade80',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 4000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   )
 }

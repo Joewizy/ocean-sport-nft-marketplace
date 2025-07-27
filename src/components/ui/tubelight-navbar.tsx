@@ -165,45 +165,16 @@ export function NavBar({ items, className }: NavBarProps) {
                       )
                     }
                     return (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={openChainModal}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-full text-xs font-medium transition-colors shadow-lg w-40"
-                          type="button"
-                        >
-                          {chain.hasIcon && (
-                            <div
-                              style={{
-                                background: chain.iconBackground,
-                                width: 12,
-                                height: 12,
-                                borderRadius: 999,
-                                overflow: 'hidden',
-                                marginRight: 4,
-                              }}
-                            >
-                              {chain.iconUrl && (
-                                <img
-                                  alt={chain.name ?? 'Chain icon'}
-                                  src={chain.iconUrl}
-                                  style={{ width: 12, height: 12 }}
-                                />
-                              )}
-                            </div>
-                          )}
-                          {chain.name}
-                        </button>
-                        <button
-                          onClick={openAccountModal}
-                          type="button"
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full text-sm font-semibold transition-colors shadow-lg w-40"
-                        >
-                          {account.displayName}
-                          {account.displayBalance
-                            ? ` (${account.displayBalance})`
-                            : ''}
-                        </button>
-                      </div>
+                      <button
+                        onClick={openAccountModal}
+                        type="button"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full text-sm font-semibold transition-colors shadow-lg w-48"
+                      >
+                        {account.displayName}
+                        {account.displayBalance
+                          ? ` (${account.displayBalance})`
+                          : ''}
+                      </button>
                     )
                   })()
                   }

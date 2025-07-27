@@ -18,31 +18,31 @@ export default function HomePage() {
   const featuredNFTs = [
     {
       id: 1,
-      title: "Ocean Waves #001",
-      artist: "AquaArtist",
+      title: "Championship Victory",
+      artist: "SportsMaster",
       price: "2.5 ETH",
-      image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&h=400&fit=crop&crop=center"
+      image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=400&fit=crop&crop=center"
     },
     {
       id: 2,
-      title: "Deep Sea Explorer",
-      artist: "MarineCreator",
+      title: "Digital Art Fusion",
+      artist: "PixelCreator",
       price: "1.8 ETH",
-      image: "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=400&fit=crop&crop=center"
+      image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=400&fit=crop&crop=center"
     },
     {
       id: 3,
-      title: "Coral Reef Dreams",
-      artist: "ReefMaster",
+      title: "Ocean Waves #001",
+      artist: "AquaArtist",
       price: "3.2 ETH",
-      image: "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?w=400&h=400&fit=crop&crop=center"
+      image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400&h=400&fit=crop&crop=center"
     },
     {
       id: 4,
-      title: "Whale Song",
-      artist: "OceanSounds",
+      title: "Abstract Geometry",
+      artist: "ModernArt",
       price: "4.1 ETH",
-      image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=400&h=400&fit=crop&crop=center"
+      image: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?w=400&h=400&fit=crop&crop=center"
     }
   ]
 
@@ -78,15 +78,15 @@ export default function HomePage() {
                 text={[
                   "digital art",
                   "NFT trading",
-                  "ocean conservation",
-                  "marine creativity",
-                  "underwater exploration"
+                  "sports collectibles",
+                  "creative expression",
+                  "digital ownership"
                 ]}
                 speed={100}
                 className="text-blue-600 dark:text-cyan-400 font-bold"
                 waitTime={2000}
                 deleteSpeed={50}
-                cursorChar="🌊"
+                cursorChar="🚀"
               />
             </div>
           </motion.div>
@@ -97,9 +97,9 @@ export default function HomePage() {
             transition={{ duration: 0.8, delay: 0.3 }}
             className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed"
           >
-            Welcome to OceanSport - the premier NFT marketplace where marine artistry meets blockchain technology. 
-            Discover, collect, and trade unique digital assets inspired by the beauty and mystery of our oceans. 
-            From underwater photography to marine life illustrations, every piece tells a story of the deep blue.
+            Welcome to OceanSport - the premier NFT marketplace where creativity meets blockchain technology. 
+            Discover, collect, and trade unique digital assets from sports memorabilia to ocean art, abstract designs to gaming collectibles. 
+            Whether you're passionate about athletics, marine life, or any form of digital art - every NFT tells a unique story.
           </motion.p>
           
           <motion.div
@@ -216,10 +216,10 @@ export default function HomePage() {
             className="bg-gradient-to-r from-blue-600 to-cyan-600 rounded-3xl p-12 text-white"
           >
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Ready to Make Waves?
+              Ready to Make Your Mark?
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of artists and collectors in the world's most vibrant ocean-themed NFT marketplace.
+              Join thousands of artists and collectors in the world's most vibrant NFT marketplace for all types of digital art.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105">
@@ -244,7 +244,7 @@ export default function HomePage() {
                 OceanSport
               </h3>
               <p className="text-gray-400">
-                The premier destination for ocean-inspired NFTs and marine digital art.
+                The premier destination for all types of NFTs - from sports and ocean themes to any digital art.
               </p>
             </div>
             <div>
