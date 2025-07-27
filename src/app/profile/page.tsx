@@ -13,14 +13,7 @@ import { FetchedNFTs } from "@/utils/interfaces"
 import { useRouter, useSearchParams } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
 import { formatPrice } from "@/utils/formatPrice"
-
-// Updated interface to match the modal's expected format
-interface NFTForModal {
-  id: number
-  title: string
-  image: string
-  currentPrice?: string
-}
+import { NFTForModal } from "@/utils/interfaces"
 
 export default function ProfilePage() {
   const searchParams = useSearchParams()

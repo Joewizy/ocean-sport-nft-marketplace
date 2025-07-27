@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel, ExternalLink, CheckCircle } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel, ExternalLink, CheckCircle, X } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState } from "react"
@@ -10,6 +10,7 @@ import { oceansportAbi, oceansportAddress } from "@/contracts/constants"
 import { waitForTransactionReceipt } from "@wagmi/core"
 import { useRouter } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
+import NFTPreview from "@/components/NFTPreview"
 
 export default function CreatePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -39,6 +40,16 @@ export default function CreatePage() {
       reader.onload = (e) => setPreview(e.target?.result as string)
       reader.readAsDataURL(file)
     }
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null)
+    setPreview(null)
+  }
+
+  const triggerFileSelect = () => {
+    const fileInput = document.getElementById('file-input') as HTMLInputElement
+    fileInput?.click()
   }
 
   async function handleMint() {
@@ -132,32 +143,52 @@ export default function CreatePage() {
               {/* Upload */}
               <div>
                 <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Upload Your Art</h3>
-                <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors relative">
-                  {preview ? (
-                    <div className="relative aspect-square max-w-sm mx-auto">
-                      <Image
-                        src={preview}
-                        alt="Preview"
-                        fill
-                        className="object-cover rounded-lg"
-                      />
+                
+                {preview ? (
+                  // Preview Mode
+                  <div className="relative">
+                    <NFTPreview preview={preview} />
+                    
+                    {/* Control Buttons */}
+                    <div className="flex justify-center gap-2 mt-4">
+                      <button
+                        onClick={triggerFileSelect}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                      >
+                        <Upload size={16} />
+                        Change Image
+                      </button>
+                      <button
+                        onClick={handleRemoveImage}
+                        className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                      >
+                        <X size={16} />
+                        Remove
+                      </button>
                     </div>
-                  ) : (
-                    <>
-                      <Upload className="mx-auto mb-4 text-gray-400" size={48} />
-                      <p className="text-gray-600 dark:text-gray-400 mb-4">
-                        Drag and drop your file here, or click to browse
-                      </p>
-                      <p className="text-sm text-gray-500">Supports JPG, PNG, GIF, SVG, GLB, GLTF</p>
-                    </>
-                  )}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileSelect}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                </div>
+                  </div>
+                ) : (
+                  // Upload Mode
+                  <div 
+                    onClick={triggerFileSelect}
+                    className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                  >
+                    <Upload className="mx-auto mb-4 text-gray-400" size={48} />
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Drag and drop your file here, or click to browse
+                    </p>
+                    <p className="text-sm text-gray-500">Supports JPG, PNG, GIF, SVG, GLB, GLTF</p>
+                  </div>
+                )}
+
+                {/* Hidden File Input */}
+                <input
+                  id="file-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
               </div>
 
               {/* Details */}

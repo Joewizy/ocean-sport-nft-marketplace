@@ -7,3 +7,14 @@ export interface FetchedNFTs {
     likes: number,
     views: number,
 }
+
+export interface NFTForModal {
+  id: number
+  title: string
+  image: string
+  currentPrice?: string
+}
+
+export interface NFTPreviewProps {
+  preview: string | null
+}
