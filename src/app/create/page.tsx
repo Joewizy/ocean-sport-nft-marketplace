@@ -15,6 +15,7 @@ import NFTPreview from "@/components/NFTPreview"
 export default function CreatePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [croppedFile, setCroppedFile] = useState<File | null>(null)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [isUploading, setIsUploading] = useState(false)
@@ -45,6 +46,12 @@ export default function CreatePage() {
   const handleRemoveImage = () => {
     setSelectedFile(null)
     setPreview(null)
+    setCroppedFile(null)
+  }
+
+  const handleCroppedImage = (croppedFile: File) => {
+    setCroppedFile(croppedFile)
+    toast.success("Crop applied! This version will be used for minting.")
   }
 
   const triggerFileSelect = () => {
@@ -53,7 +60,9 @@ export default function CreatePage() {
   }
 
   async function handleMint() {
-    if (!name || !selectedFile) {
+    const fileToMint = croppedFile || selectedFile // Use cropped version if available
+    
+    if (!name || !fileToMint) {
       toast.error("Please enter a name and upload a file.")
       return
     }
@@ -65,7 +74,7 @@ export default function CreatePage() {
         const reader = new FileReader()
         reader.onload = () => resolve(reader.result as string)
         reader.onerror = reject
-        reader.readAsDataURL(selectedFile)
+        reader.readAsDataURL(fileToMint)
       })
 
       // Upload metadata to IPFS
@@ -144,10 +153,17 @@ export default function CreatePage() {
               <div>
                 <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Upload Your Art</h3>
                 
-                {preview ? (
+                  {preview ? (
                   // Preview Mode
                   <div className="relative">
-                    <NFTPreview preview={preview} />
+                    <NFTPreview preview={preview} onCroppedImage={handleCroppedImage} />
+                    
+                    {/* Status Indicator */}
+                    {croppedFile && (
+                      <div className="text-center mt-2 text-sm text-green-600 dark:text-green-400 font-medium">
+                        ✓ Cropped version ready for minting
+                      </div>
+                    )}
                     
                     {/* Control Buttons */}
                     <div className="flex justify-center gap-2 mt-4">

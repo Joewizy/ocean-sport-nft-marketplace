@@ -1,19 +1,22 @@
 'use client'
 
-import { useState } from 'react'
-import { ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { ZoomIn, ZoomOut, RotateCcw, Save } from 'lucide-react'
 
 interface NFTPreviewProps {
   preview: string | null
+  onCroppedImage?: (croppedFile: File) => void
 }
 
-export default function NFTPreview({ preview }: NFTPreviewProps) {
+export default function NFTPreview({ preview, onCroppedImage }: NFTPreviewProps) {
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [zoom, setZoom] = useState(100) // Zoom percentage
   const [position, setPosition] = useState({ x: 0, y: 0 }) // Pan position
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const imageRef = useRef<HTMLImageElement>(null)
 
   if (!preview) return null
 
@@ -65,6 +68,57 @@ export default function NFTPreview({ preview }: NFTPreviewProps) {
     setIsDragging(false)
   }
 
+  const handleSaveCrop = () => {
+    if (!preview || !canvasRef.current || !imageRef.current || !onCroppedImage) return
+
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const img = imageRef.current
+    const containerSize = 400 // Square container size
+
+    // Set canvas to square dimensions
+    canvas.width = containerSize
+    canvas.height = containerSize
+
+    // Clear canvas
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, containerSize, containerSize)
+
+    // Calculate image dimensions and position
+    const imgAspectRatio = img.naturalWidth / img.naturalHeight
+    let drawWidth = containerSize
+    let drawHeight = containerSize
+
+    if (imgAspectRatio > 1) {
+      // Landscape
+      drawHeight = containerSize / imgAspectRatio
+    } else {
+      // Portrait or square
+      drawWidth = containerSize * imgAspectRatio
+    }
+
+    // Apply zoom
+    drawWidth *= (zoom / 100)
+    drawHeight *= (zoom / 100)
+
+    // Calculate position (center by default, then apply user positioning)
+    const drawX = (containerSize - drawWidth) / 2 + (position.x / (zoom / 100))
+    const drawY = (containerSize - drawHeight) / 2 + (position.y / (zoom / 100))
+
+    // Draw the image
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight)
+
+    // Convert canvas to blob and create file
+    canvas.toBlob((blob) => {
+      if (blob) {
+        const croppedFile = new File([blob], 'cropped-nft.png', { type: 'image/png' })
+        onCroppedImage(croppedFile)
+      }
+    }, 'image/png', 0.95)
+  }
+
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Controls */}
@@ -98,6 +152,16 @@ export default function NFTPreview({ preview }: NFTPreviewProps) {
         >
           <RotateCcw size={16} />
         </button>
+        
+        {onCroppedImage && (zoom !== 100 || position.x !== 0 || position.y !== 0) && (
+          <button
+            onClick={handleSaveCrop}
+            className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            title="Save Crop"
+          >
+            <Save size={16} />
+          </button>
+        )}
       </div>
 
       {/* Image Container - Fixed square like 1080x1080 */}
@@ -116,6 +180,7 @@ export default function NFTPreview({ preview }: NFTPreviewProps) {
           onMouseLeave={() => setIsDragging(false)}
         >
           <img
+            ref={imageRef}
             src={preview}
             alt="NFT Preview"
             className={`w-full h-full object-contain transition-all duration-200 ${
@@ -131,6 +196,9 @@ export default function NFTPreview({ preview }: NFTPreviewProps) {
           />
         </div>
 
+        {/* Hidden canvas for cropping */}
+        <canvas ref={canvasRef} className="hidden" />
+
         {/* Zoom hint */}
         {zoom > 100 && (
           <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/50 text-white text-xs rounded">
@@ -142,6 +210,11 @@ export default function NFTPreview({ preview }: NFTPreviewProps) {
       {/* Info */}
       <div className="text-center mt-2 text-xs text-gray-500 dark:text-gray-400">
         Adjust zoom to fit your image perfectly
+        {onCroppedImage && (zoom !== 100 || position.x !== 0 || position.y !== 0) && (
+          <span className="block text-green-600 dark:text-green-400 font-medium">
+            Click save to apply crop
+          </span>
+        )}
       </div>
     </div>
   )

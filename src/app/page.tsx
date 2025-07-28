@@ -89,7 +89,7 @@ export default function HomePage() {
                 className="text-blue-600 dark:text-cyan-400 font-bold"
                 waitTime={2000}
                 deleteSpeed={50}
-                cursorChar="🚀"
+                cursorChar="🌊"
               />
             </div>
           </motion.div>
