@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OceanSport NFT Marketplace
 
-## Getting Started
+A gasless NFT marketplace built on EVM with royalty support and real-time blockchain indexing.
 
-First, run the development server:
+## 🛠️ Tech Stack
+
+### Frontend
+- **Next.js 14** - React framework with App Router
+- **TypeScript** - Type-safe development
+- **Tailwind CSS** - Utility-first styling
+- **Framer Motion** - Smooth animations
+- **Wagmi** - Ethereum hooks for React
+- **RainbowKit** - Wallet connection UI
+
+### Smart Contracts
+- **Solidity** - Smart contract language
+- **Foundry** - Development framework
+- **OpenZeppelin** - Secure contract libraries
+- **ERC2771** - Gasless transaction support
+
+### Blockchain & Indexing
+- **Base Sepolia** - EVM testnet
+- **[rIndexer](https://github.com/joshstevens19/rindexer)** - Real-time blockchain event indexing
+- **GraphQL** - Query indexed data from database
+- **Meta-transactions** - Gasless user experience
+
+### Infrastructure
+- **IPFS** - Decentralized file storage
+- **Pinata** - IPFS pinning service
+- **Gas Sponsorship** - Pay user gas fees
+- **USDT Integration** - Multi-currency support
+
+## 🚀 Features
+
+- **Gasless Transactions** - Users don't pay gas fees
+- **Royalty Support** - Automatic royalty distribution
+- **Real-time Indexing** - Live blockchain event tracking
+- **Multi-currency** - ETH and USDT payments
+- **Auction System** - Live bidding with countdown timers
+- **Responsive UI** - Modern, mobile-first design
+
+## 🏃‍♂️ Quick Start
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📦 Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+NEXT_PUBLIC_RPC_URL=your_rpc_url
+NEXT_PUBLIC_SPONSOR_PRIVATE_KEY=your_sponsor_key
+NEXT_PUBLIC_GAS_SPONSORSHIP_ENABLED=true
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🔗 Live Demo
 
-## Learn More
+Visit the marketplace at `http://localhost:3000`
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

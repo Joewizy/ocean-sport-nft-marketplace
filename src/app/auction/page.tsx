@@ -209,7 +209,6 @@ export default function AuctionPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
       <NavBar items={navItems} />
-      <Toaster />
       
       {/* Header */}
       <section className="pt-24 pb-12 px-4">

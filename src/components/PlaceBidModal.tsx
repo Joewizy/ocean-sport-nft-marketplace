@@ -1,4 +1,6 @@
-import { useState } from "react"
+"use client"
+
+import { useState, useRef, useEffect } from "react"
 import { useAccount, useConfig, useBalance, useWriteContract } from "wagmi"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, DollarSign, Coins, Zap, ExternalLink } from "lucide-react"
@@ -66,6 +68,16 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
     setError('')
     clearUSDTApprovalError()
   }
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (!isOpen) {
+      setAmount('')
+      setError('')
+      setIsProcessing(false)
+      clearUSDTApprovalError()
+    }
+  }, [isOpen, clearUSDTApprovalError])
   
   const handleAction = async () => {
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
@@ -138,7 +150,8 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
       if (receipt) {
         console.log('Transaction Hash:', receipt.transactionHash)
         
-        // Show toast notification
+        const successMsg = type === 'bid' ? 'Bid placed successfully!' : 'NFT purchased successfully!'
+        
         toast.success(
           <div className="flex flex-col gap-2">
             <span>Transaction confirmed!</span>
@@ -190,6 +203,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
             initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
           >
+            
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
@@ -199,6 +213,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                 <X size={20} />
               </button>
             </div>
+            
             {/* Content */}
             <div className="p-6 space-y-6">
               {/* NFT Info */}
@@ -218,6 +233,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                   )}
                 </div>
               </div>
+              
               {/* Balances */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Your Balance</label>
@@ -236,6 +252,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                   </div>
                 </div>
               </div>
+              
               {/* Amount Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -244,7 +261,8 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                 <input
                   type="number" step="0.001" placeholder={type === 'bid' ? "Enter your bid" : "Confirm amount"}
                   value={amount} onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 dark_border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
                 />
                 {type === 'bid' && auction && auction.currentBid > BigInt(0) && (
                   <p className="text-xs text-gray-500 mt-2">
@@ -252,6 +270,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                   </p>
                 )}
               </div>
+              
               {/* Sponsorship Toggle (ETH only) */}
               {type === 'bid' && !currencyType && isEnabled && (
                 <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 flex items-center justify-between">
@@ -268,11 +287,13 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                       checked={useSponsorship}
                       onChange={(e) => setUseSponsorship(e.target.checked)}
                       className="sr-only peer"
+                      disabled={isLoading}
                     />
                     <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
               )}
+              
               {/* Sponsorship Disabled for USDT */}
               {type === 'bid' && currencyType && (
                 <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 flex items-center gap-3">
@@ -283,14 +304,23 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                   </div>
                 </div>
               )}
+              
               {/* Action Button */}
               <button
                 onClick={handleAction}
                 disabled={!amount || isLoading}
                 className={`w-full ${type === 'bid' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'} disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed`}
               >
-                {isLoading ? 'Processing...' : type === 'bid' ? `Place Bid (${currencyType ? 'USDT' : 'ETH'})` : `Buy Now (${currencyType ? 'USDT' : 'ETH'})`}
+                {isLoading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </div>
+                ) : (
+                  type === 'bid' ? `Place Bid (${currencyType ? 'USDT' : 'ETH'})` : `Buy Now (${currencyType ? 'USDT' : 'ETH'})`
+                )}
               </button>
+              
               {/* Error */}
               {displayError && (
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
@@ -298,6 +328,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                   <button onClick={clearError} className="text-red-600 dark:text-red-400 text-sm underline mt-1">Dismiss</button>
                 </div>
               )}
+              
               {/* Details */}
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="text-sm text-blue-700 dark:text-blue-300">
@@ -306,7 +337,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                   {currencyType && (
                     <p>2. Approve USDT spending (if needed)</p>
                   )}
-                  <p>3. {currencyType ? 'Approve transaction in your wallet' : 'Approve transaction in your wallet'}</p>
+                  <p>3. Approve transaction in your wallet</p>
                   <p>4. {type === 'bid' ? "Bid will be placed" : "NFT will be transferred to your wallet"}</p>
                 </div>
               </div>

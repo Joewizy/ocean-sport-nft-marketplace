@@ -43,7 +43,6 @@ export function useGasSponsorship() {
     }
 
     setIsSponsoring(true)
-    const loadingToast = toast.loading('Preparing sponsored transaction...')
 
     try {
       // Convert wallet client to ethers signer
@@ -66,20 +65,12 @@ export function useGasSponsorship() {
         requestData
       )
 
-      toast.dismiss(loadingToast)
-      const executingToast = toast.loading('Executing sponsored transaction...')
-
       // Execute sponsored transaction
       const tx = await gasService.sponsorTransaction(request, signature)
-      
-      toast.dismiss(executingToast)
-      toast.success('Transaction sponsored successfully! 🎉')
 
       return tx.hash
     } catch (error) {
-      toast.dismiss(loadingToast)
       console.error('Sponsored transaction failed:', error)
-      toast.error('Failed to sponsor transaction')
       throw error
     } finally {
       setIsSponsoring(false)
