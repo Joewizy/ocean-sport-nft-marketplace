@@ -1,4 +1,3 @@
-// Updated CreatePage component with gas sponsorship
 "use client"
 
 import Image from "next/image"

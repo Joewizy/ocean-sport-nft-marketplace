@@ -33,6 +33,12 @@ export interface LiveAuction {
   hasBids: boolean; 
   currentBidUSD?: string; 
   bidHistory?: { bidder: string; amount: string; time: string }[]; 
+  isUserHighestBidder?: boolean;
+}
+
+export interface ContractAuction extends LiveAuction {
+  tokenId: string;
+  isUSDT: boolean;
 }
 
 export interface ListNFTModalProps {
@@ -44,4 +50,27 @@ export interface ListNFTModalProps {
     image: string
     currentPrice?: string
   }
+}
+
+export interface PlaceBidModalProps {
+  isOpen: boolean
+  onClose: () => void
+  auction?: {
+    id: number
+    title: string
+    image: string
+    currentBid: bigint
+    startingPrice: bigint
+    isUSDT: boolean
+    tokenId: string
+  }
+  nft?: { 
+    id: string
+    title: string
+    image: string
+    price: bigint
+    isUSDT: boolean
+    listingId: number
+  }
+  type: 'bid' | 'buy'
 }

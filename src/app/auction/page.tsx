@@ -1,14 +1,24 @@
 "use client"
 
-import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Clock, Gavel, TrendingUp, Users } from "lucide-react"
-import { NavBar } from "@/components/ui/tubelight-navbar"
-import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
-import { useConfig } from "wagmi"
-import { readContract } from "@wagmi/core"
+import { useConfig, useAccount, useWriteContract, useReadContract } from "wagmi"
+import { motion } from "framer-motion"
+import { Clock, Users, Gavel, ExternalLink, Home, ShoppingBag, Plus, User, TrendingUp } from "lucide-react"
+import { waitForTransactionReceipt, readContract } from "@wagmi/core"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contracts/constants"
-import { LiveAuction } from "@/utils/interfaces"
+import { LiveAuction, ContractAuction } from "@/utils/interfaces"
+import { PlaceBidModal } from "@/components/PlaceBidModal"
+import { NavBar } from "@/components/ui/tubelight-navbar"
+import Image from "next/image"
+import toast, { Toaster } from "react-hot-toast"
+
+// Utility to parse '4.0 ETH' or '5.2 USDT' to BigInt in wei
+function parseAmountToWei(amountStr: string): bigint {
+  if (!amountStr) return BigInt(0);
+  const num = parseFloat(amountStr);
+  if (isNaN(num)) return BigInt(0);
+  return BigInt(Math.floor(num * 1e18));
+}
 
 export default function AuctionPage() {
   const [timeLeft, setTimeLeft] = useState({
@@ -18,10 +28,17 @@ export default function AuctionPage() {
     seconds: 45
   })
   const [liveAuctions, setLiveAuctions] = useState<LiveAuction[]>([])
+  const [contractAuctions, setContractAuctions] = useState<ContractAuction[]>([])
   const [featuredAuction, setFeaturedAuction] = useState<LiveAuction | null>(null)
+  const [featuredContractAuction, setFeaturedContractAuction] = useState<ContractAuction | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isBidModalOpen, setIsBidModalOpen] = useState(false)
+  const [selectedContractAuction, setSelectedContractAuction] = useState<ContractAuction | null>(null)
+  const [userBids, setUserBids] = useState<{[auctionId: number]: {amount: string, isHighest: boolean}}>({})
   
   const config = useConfig()
+  const account = useAccount()
+  const { writeContractAsync } = useWriteContract()
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -55,6 +72,26 @@ export default function AuctionPage() {
     return () => clearInterval(timer)
   }, [])
 
+  // Check if current user is the highest bidder
+  const checkUserBidStatus = (auction: any, accountAddress: string) => {
+    if (!accountAddress || !auction.highestBidder) return false
+    return auction.highestBidder.toLowerCase() === accountAddress.toLowerCase()
+  }
+
+  // Track user bid when placed
+  const trackUserBid = (auctionId: number, amount: string) => {
+    setUserBids(prev => ({
+      ...prev,
+      [auctionId]: { amount, isHighest: true }
+    }))
+  }
+
+  // Handler to open modal for a given auction
+  const handleOpenBidModal = (auction: ContractAuction) => {
+    setSelectedContractAuction(auction)
+    setIsBidModalOpen(true)
+  }
+
   const fetchAuctions = async () => {
     try {
       setIsLoading(true)
@@ -83,22 +120,23 @@ export default function AuctionPage() {
       const auctions = await Promise.all(auctionPromises)
       
       // Filter active auctions and fetch metadata
-      const activeAuctions = auctions
-        .map((auction: any, index) => ({
+      const activeAuctions: any[] = auctions
+        .map((auction: any, index: number) => ({
           auctionId: index + 1,
           nftContract: auction.nftContract,
           tokenId: auction.tokenId.toString(),
           seller: auction.seller,
           startingPrice: auction.startingPrice,
-          currentBid: auction.currentBid,
+          highestBid: auction.highestBid,
+          highestBidder: auction.highestBidder,
           endTime: Number(auction.endTime),
           isUSDT: auction.isUSDT,
           active: auction.active,
         }))
-        .filter(auction => auction.active && auction.nftContract !== "0x0000000000000000000000000000000000000000")
+        .filter((auction: any) => auction.active && auction.nftContract !== "0x0000000000000000000000000000000000000000")
 
       // Fetch metadata for each active auction
-      const auctionDataPromises = activeAuctions.map(async (auction) => {
+      const auctionDataPromises = activeAuctions.map(async (auction: any) => {
         try {
           const tokenURI = await readContract(config, {
             abi: oceansportAbi,
@@ -115,86 +153,54 @@ export default function AuctionPage() {
           const hours = Math.floor((timeRemaining % 86400) / 3600)
           const minutes = Math.floor((timeRemaining % 3600) / 60)
           
-          const currentBidAmount = Number(auction.currentBid) / 1e18
-          const hasBids = currentBidAmount > 0
+          const highestBidAmount = Number(auction.highestBid) / 1e18
+          const startingPriceAmount = Number(auction.startingPrice) / 1e18
+          const hasBids = highestBidAmount > 0
+          const isUserHighestBidder = checkUserBidStatus(auction, account.address || '')
           
-          return {
+          // Build both LiveAuction and ContractAuction
+          const liveAuction: LiveAuction = {
             id: auction.auctionId,
             title: metadata.name || `NFT #${auction.tokenId}`,
             image: metadata.image || '',
             description: metadata.description || '',
             artist: auction.seller.slice(0,10),
-            currentBid: hasBids ? `${currentBidAmount.toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}` : '',
-            startingPrice: `${(Number(auction.startingPrice) / 1e18).toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}`,
+            currentBid: hasBids ? `${highestBidAmount.toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}` : `${startingPriceAmount.toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}`,
+            startingPrice: `${startingPriceAmount.toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}`,
             bidCount: hasBids ? 1 : 0,
             timeLeft: timeRemaining > 0 ? `${days}d ${hours}h ${minutes}m` : 'Ended',
             endTime: auction.endTime,
-            hasBids: hasBids
+            hasBids: hasBids,
+            currentBidUSD: hasBids ? `$${(highestBidAmount * (auction.isUSDT ? 1 : 2000)).toFixed(2)}` : undefined,
+            isUserHighestBidder: isUserHighestBidder
           }
+          const contractAuction: ContractAuction = {
+            ...liveAuction,
+            tokenId: auction.tokenId.toString(),
+            isUSDT: auction.isUSDT
+          }
+          return { liveAuction, contractAuction }
         } catch (error) {
           console.error(`Error fetching metadata for auction ${auction.auctionId}:`, error)
           return null
         }
       })
-
       const resolvedAuctions = await Promise.all(auctionDataPromises)
-      const validAuctions = resolvedAuctions.filter(auction => 
-        auction && 
-        auction.image && 
-        auction.title !== `NFT #${auction.id}` &&
-        auction.timeLeft !== 'Ended'
-      ) as LiveAuction[]
-      
-      setLiveAuctions(validAuctions)
-      
-      // Set featured auction (first valid auction or fallback)
-      if (validAuctions.length > 0) {
-        setFeaturedAuction(validAuctions[0])
+      const validLiveAuctions = resolvedAuctions.filter((a: any) => a && a.liveAuction && a.liveAuction.image && a.liveAuction.title !== `NFT #${a.contractAuction.tokenId}` && a.liveAuction.timeLeft !== 'Ended').map((a: any) => a.liveAuction) as LiveAuction[]
+      const validContractAuctions = resolvedAuctions.filter((a: any) => a && a.contractAuction && a.liveAuction.image && a.liveAuction.title !== `NFT #${a.contractAuction.tokenId}` && a.liveAuction.timeLeft !== 'Ended').map((a: any) => a.contractAuction) as ContractAuction[]
+      setLiveAuctions(validLiveAuctions)
+      setContractAuctions(validContractAuctions)
+      if (validLiveAuctions.length > 0) {
+        setFeaturedAuction(validLiveAuctions[0])
+        setFeaturedContractAuction(validContractAuctions[0])
       } else {
-        // Fallback featured auction if no real auctions
-        setFeaturedAuction({
-          id: 1,
-          title: "Whale Migration #003",
-          artist: "OceanWatcher",
-          description: "A breathtaking capture of humpback whales during their annual migration.",
-          currentBid: "5.2 ETH",
-          startingPrice: "4.0 ETH", 
-          currentBidUSD: "$8,840",
-          bidCount: 12,
-          timeLeft: "2d 14h 32m",
-          image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
-          endTime: Math.floor(Date.now() / 1000) + 86400 * 2,
-          hasBids: true,
-          bidHistory: [
-            { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
-            { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
-            { bidder: "0x9876...1234", amount: "4.8 ETH", time: "1 hour ago" },
-          ]
-        })
+        setFeaturedAuction(null)
+        setFeaturedContractAuction(null)
       }
-      
     } catch (error) {
       console.error('Error fetching auctions:', error)
-      // Set fallback data on error
-      setFeaturedAuction({
-        id: 1,
-        title: "Whale Migration #003",
-        artist: "OceanWatcher",
-        description: "A breathtaking capture of humpback whales during their annual migration.",
-        currentBid: "5.2 ETH",
-        startingPrice: "4.0 ETH",
-        currentBidUSD: "$8,840",
-        bidCount: 12,
-        timeLeft: "2d 14h 32m",
-        image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
-        endTime: Math.floor(Date.now() / 1000) + 86400 * 2,
-        hasBids: true, 
-        bidHistory: [
-          { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
-          { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
-          { bidder: "0x9876...1234", amount: "4.8 ETH", time: "1 hour ago" },
-        ]
-      })
+      setFeaturedAuction(null)
+      setFeaturedContractAuction(null)
     } finally {
       setIsLoading(false)
     }
@@ -203,6 +209,7 @@ export default function AuctionPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
       <NavBar items={navItems} />
+      <Toaster />
       
       {/* Header */}
       <section className="pt-24 pb-12 px-4">
@@ -298,9 +305,16 @@ export default function AuctionPage() {
                           <div className="text-2xl font-bold text-gray-800 dark:text-white">
                             {featuredAuction.currentBid}
                           </div>
-                          <div className="text-gray-600 dark:text-gray-400">
-                            {featuredAuction.currentBidUSD}
-                          </div>
+                          {featuredAuction.currentBidUSD && (
+                            <div className="text-gray-600 dark:text-gray-400">
+                              {featuredAuction.currentBidUSD}
+                            </div>
+                          )}
+                          {featuredAuction.isUserHighestBidder && (
+                            <div className="text-sm text-green-600 dark:text-green-400 font-semibold mt-1">
+                              🏆 You are the highest bidder!
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
@@ -320,12 +334,10 @@ export default function AuctionPage() {
                   </div>
                   
                   <div className="flex gap-3">
-                    <input
-                      type="number"
-                      placeholder="Enter bid amount"
-                      className="flex-1 px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <button className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105">
+                    <button
+                      className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 w-full"
+                      onClick={() => featuredContractAuction && handleOpenBidModal(featuredContractAuction)}
+                    >
                       <Gavel className="inline-block mr-2" size={18} />
                       Place Bid
                     </button>
@@ -405,6 +417,11 @@ export default function AuctionPage() {
                         <>
                           <div className="text-xs text-gray-600 dark:text-gray-400">Current Bid</div>
                           <div className="text-lg font-bold text-blue-600">{auction.currentBid}</div>
+                          {auction.isUserHighestBidder && (
+                            <div className="text-xs text-green-600 dark:text-green-400 font-semibold">
+                              🏆 Your bid
+                            </div>
+                          )}
                         </>
                       ) : (
                         <>
@@ -419,16 +436,52 @@ export default function AuctionPage() {
                     </div>
                   </div>
                   
-                  <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-1.5 rounded-lg transition-colors text-sm">
-                    <Gavel className="inline-block mr-1" size={14} />
-                    Place Bid
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded text-xs transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => handleOpenBidModal(contractAuctions[index])}
+                    >
+                      Bid
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* PlaceBidModal for bidding */}
+      <PlaceBidModal
+        isOpen={isBidModalOpen}
+        onClose={() => {
+          setIsBidModalOpen(false)
+          // Refresh auctions after modal closes to show updated bid status
+          fetchAuctions()
+        }}
+        auction={selectedContractAuction ? {
+          id: selectedContractAuction.id,
+          title: selectedContractAuction.title,
+          image: selectedContractAuction.image,
+          currentBid: parseAmountToWei(selectedContractAuction.currentBid),
+          startingPrice: parseAmountToWei(selectedContractAuction.startingPrice),
+          isUSDT: selectedContractAuction.isUSDT,
+          tokenId: selectedContractAuction.tokenId,
+        } : undefined}
+        type="bid"
+      />
+      
+      {/* Toast Container */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 6000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+        }}
+      />
     </div>
   )
 }
