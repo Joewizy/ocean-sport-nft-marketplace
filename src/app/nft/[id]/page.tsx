@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Heart, Share2, Clock, Eye, TrendingUp, Gavel } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Heart, Share2, Eye, TrendingUp, Gavel } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState } from "react"

@@ -1,16 +1,16 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useConfig, useAccount, useWriteContract, useReadContract } from "wagmi"
+import { useConfig, useAccount } from "wagmi"
 import { motion } from "framer-motion"
-import { Clock, Users, Gavel, ExternalLink, Home, ShoppingBag, Plus, User, TrendingUp } from "lucide-react"
-import { waitForTransactionReceipt, readContract } from "@wagmi/core"
+import { Clock, Users, Gavel, Home, ShoppingBag, Plus, User } from "lucide-react"
+import { readContract } from "@wagmi/core"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contracts/constants"
 import { LiveAuction, ContractAuction } from "@/utils/interfaces"
 import { PlaceBidModal } from "@/components/PlaceBidModal"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import Image from "next/image"
-import toast, { Toaster } from "react-hot-toast"
+import { Toaster } from "react-hot-toast"
 
 // Utility to parse '4.0 ETH' or '5.2 USDT' to BigInt in wei
 function parseAmountToWei(amountStr: string): bigint {
@@ -31,14 +31,11 @@ export default function AuctionPage() {
   const [contractAuctions, setContractAuctions] = useState<ContractAuction[]>([])
   const [featuredAuction, setFeaturedAuction] = useState<LiveAuction | null>(null)
   const [featuredContractAuction, setFeaturedContractAuction] = useState<ContractAuction | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [isBidModalOpen, setIsBidModalOpen] = useState(false)
   const [selectedContractAuction, setSelectedContractAuction] = useState<ContractAuction | null>(null)
-  const [userBids, setUserBids] = useState<{[auctionId: number]: {amount: string, isHighest: boolean}}>({})
   
   const config = useConfig()
   const account = useAccount()
-  const { writeContractAsync } = useWriteContract()
 
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
@@ -73,18 +70,12 @@ export default function AuctionPage() {
   }, [])
 
   // Check if current user is the highest bidder
-  const checkUserBidStatus = (auction: any, accountAddress: string) => {
+  const checkUserBidStatus = (auction: { highestBidder?: string }, accountAddress: string) => {
     if (!accountAddress || !auction.highestBidder) return false
     return auction.highestBidder.toLowerCase() === accountAddress.toLowerCase()
   }
 
-  // Track user bid when placed
-  const trackUserBid = (auctionId: number, amount: string) => {
-    setUserBids(prev => ({
-      ...prev,
-      [auctionId]: { amount, isHighest: true }
-    }))
-  }
+
 
   // Handler to open modal for a given auction
   const handleOpenBidModal = (auction: ContractAuction) => {
@@ -94,7 +85,6 @@ export default function AuctionPage() {
 
   const fetchAuctions = async () => {
     try {
-      setIsLoading(true)
       
       // Get current auction ID to know how many auctions exist
       const currentAuctionId = await readContract(config, {
@@ -120,7 +110,7 @@ export default function AuctionPage() {
       const auctions = await Promise.all(auctionPromises)
       
       // Filter active auctions and fetch metadata
-      const activeAuctions: any[] = auctions
+      const activeAuctions = auctions
         .map((auction: any, index: number) => ({
           auctionId: index + 1,
           nftContract: auction.nftContract,
@@ -133,10 +123,10 @@ export default function AuctionPage() {
           isUSDT: auction.isUSDT,
           active: auction.active,
         }))
-        .filter((auction: any) => auction.active && auction.nftContract !== "0x0000000000000000000000000000000000000000")
+        .filter((auction: { active: boolean; nftContract: string }) => auction.active && auction.nftContract !== "0x0000000000000000000000000000000000000000")
 
       // Fetch metadata for each active auction
-      const auctionDataPromises = activeAuctions.map(async (auction: any) => {
+      const auctionDataPromises = activeAuctions.map(async (auction: { auctionId: number; nftContract: string; tokenId: string; seller: string; startingPrice: bigint; highestBid: bigint; highestBidder: string; endTime: number; isUSDT: boolean }) => {
         try {
           const tokenURI = await readContract(config, {
             abi: oceansportAbi,
@@ -186,8 +176,8 @@ export default function AuctionPage() {
         }
       })
       const resolvedAuctions = await Promise.all(auctionDataPromises)
-      const validLiveAuctions = resolvedAuctions.filter((a: any) => a && a.liveAuction && a.liveAuction.image && a.liveAuction.title !== `NFT #${a.contractAuction.tokenId}` && a.liveAuction.timeLeft !== 'Ended').map((a: any) => a.liveAuction) as LiveAuction[]
-      const validContractAuctions = resolvedAuctions.filter((a: any) => a && a.contractAuction && a.liveAuction.image && a.liveAuction.title !== `NFT #${a.contractAuction.tokenId}` && a.liveAuction.timeLeft !== 'Ended').map((a: any) => a.contractAuction) as ContractAuction[]
+      const validLiveAuctions = resolvedAuctions.filter((a: { liveAuction?: LiveAuction; contractAuction?: ContractAuction } | null) => a && a.liveAuction && a.liveAuction.image && a.liveAuction.title !== `NFT #${a.contractAuction?.tokenId}` && a.liveAuction.timeLeft !== 'Ended').map((a) => a!.liveAuction!) as LiveAuction[]
+      const validContractAuctions = resolvedAuctions.filter((a: { liveAuction?: LiveAuction; contractAuction?: ContractAuction } | null) => a && a.contractAuction && a.liveAuction && a.liveAuction.image && a.liveAuction.title !== `NFT #${a.contractAuction.tokenId}` && a.liveAuction.timeLeft !== 'Ended').map((a) => a!.contractAuction!) as ContractAuction[]
       setLiveAuctions(validLiveAuctions)
       setContractAuctions(validContractAuctions)
       if (validLiveAuctions.length > 0) {
@@ -201,8 +191,6 @@ export default function AuctionPage() {
       console.error('Error fetching auctions:', error)
       setFeaturedAuction(null)
       setFeaturedContractAuction(null)
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -378,7 +366,7 @@ export default function AuctionPage() {
               More Live Auctions
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Don't miss out on these exciting bidding opportunities
+              Don&apos;t miss out on these exciting bidding opportunities
             </p>
           </motion.div>
 

@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useAccount, useWalletClient } from 'wagmi'
 import { ethers } from 'ethers'
-import { GasSponsorshipService, type MetaTxRequest } from '@/lib/gasSponsorship'
-import { minimalForwarderAbi, minimalForwarderAddress } from '@/contracts/constants'
-import toast from 'react-hot-toast'
+import { GasSponsorshipService } from '@/lib/gasSponsorship'
+import { minimalForwarderAddress } from '@/contracts/constants'
 
 // Environment variables
 const RPC_URL = process.env.NEXT_PUBLIC_RPC_URL!

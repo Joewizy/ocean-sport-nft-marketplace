@@ -5,17 +5,17 @@ import { Home, ShoppingBag, Plus, User, Edit, Share2, Heart, Eye, Gavel, Tag } f
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { ListNFTModal } from "@/components/ui/list-nft-modal"
 import { motion } from "framer-motion"
-import { useState, useEffect} from "react"
+import { useState, useEffect, Suspense} from "react"
 import { readContract } from "@wagmi/core";
 import { oceansportAbi, oceansportAddress, nftMarketplaceAbi, nftMarketplaceAddress } from "@/contracts/constants"
 import { useAccount, useConfig } from "wagmi"
 import { FetchedNFTs } from "@/utils/interfaces"
 import { useRouter, useSearchParams } from "next/navigation"
-import toast, { Toaster } from 'react-hot-toast'
+import { Toaster } from 'react-hot-toast'
 import { formatPrice } from "@/utils/formatPrice"
 import { NFTForModal } from "@/utils/interfaces"
 
-export default function ProfilePage() {
+function ProfileContent() {
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'collected' | 'created' | 'listed' | 'activity'>('collected')
   const [listingModal, setListingModal] = useState<{ isOpen: boolean; nft: NFTForModal | null }>({ 
@@ -25,7 +25,7 @@ export default function ProfilePage() {
   const [userNFT, setUserNft] = useState<FetchedNFTs[]>([]);
   const [listedNfts, setListedNfts] = useState<FetchedNFTs[]>([]);
   const [isLoadingNFTs, setIsLoadingNFTs] = useState(true)
-  const [isLoadingListed, setIsLoadingListed] = useState(true);
+
 
   const {address} = useAccount()
   const config = useConfig()
@@ -44,7 +44,6 @@ export default function ProfilePage() {
   // Fetch listed NFTs from marketplace
   async function getListedNFTs() {
     try {
-      setIsLoadingListed(true)
       if (!address) return console.warn("No connected wallet");
       
       // Get current listing ID to know how many listings exist
@@ -81,14 +80,14 @@ export default function ProfilePage() {
           isUSDT: listing.isUSDT,
           active: listing.active,
         }))
-        .filter((listing: any) => 
+        .filter((listing: { active: boolean; seller: string; nftContract: string }) => 
           listing.active && 
           listing.seller.toLowerCase() === address.toLowerCase() &&
           listing.nftContract !== "0x0000000000000000000000000000000000000000"
         )
 
       // Fetch metadata for each user listing
-      const listedNFTPromises = userListings.map(async (listing: any) => {
+      const listedNFTPromises = userListings.map(async (listing: { listingId: number; nftContract: string; tokenId: string; seller: string; price: bigint; isUSDT: boolean; active: boolean }) => {
         try {
           const tokenURI = await readContract(config, {
             abi: oceansportAbi,
@@ -118,7 +117,7 @@ export default function ProfilePage() {
       })
 
       const resolvedListedNFTs = await Promise.all(listedNFTPromises)
-      const validListedNFTs = resolvedListedNFTs.filter((nft: any) => 
+      const validListedNFTs = resolvedListedNFTs.filter((nft: FetchedNFTs | null) => 
         nft && 
         nft.image && 
         nft.title !== `NFT #${nft.id}`
@@ -128,8 +127,6 @@ export default function ProfilePage() {
       
     } catch (error) {
       console.error('Error fetching listed NFTs:', error)
-    } finally {
-      setIsLoadingListed(false)
     }
   }
 
@@ -305,7 +302,7 @@ export default function ProfilePage() {
               ].map((tab) => (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key as any)}
+                  onClick={() => setActiveTab(tab.key as 'collected' | 'created' | 'listed' | 'activity')}
                   className={`flex-1 py-3 px-6 rounded-xl font-semibold transition-all duration-300 ${
                     activeTab === tab.key
                       ? 'bg-blue-600 text-white shadow-lg'
@@ -391,7 +388,7 @@ export default function ProfilePage() {
                   <div className="text-6xl mb-4">🎨</div>
                   <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs in Collection</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-8">
-                    You haven't collected any NFTs yet. Start exploring the marketplace to find amazing digital art.
+                    You haven&apos;t collected any NFTs yet. Start exploring the marketplace to find amazing digital art.
                   </p>
                   <button
                     onClick={() => router.push("/marketplace")}
@@ -477,7 +474,7 @@ export default function ProfilePage() {
                   <div className="text-6xl mb-4">🏷️</div>
                   <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No Listed NFTs</h3>
                   <p className="text-gray-600 dark:text-gray-400 mb-8">
-                    You haven't listed any NFTs for sale yet. Start by listing one of your collected NFTs.
+                    You haven&apos;t listed any NFTs for sale yet. Start by listing one of your collected NFTs.
                   </p>
                   <button
                     onClick={() => setActiveTab('collected')}
@@ -556,5 +553,21 @@ export default function ProfilePage() {
         }}
       />
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Loading Profile...</h3>
+          <p className="text-gray-600 dark:text-gray-400">Preparing your profile data</p>
+        </div>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
   )
 }

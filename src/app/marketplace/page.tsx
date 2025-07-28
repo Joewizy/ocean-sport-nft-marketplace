@@ -7,7 +7,7 @@ import { motion } from "framer-motion"
 import { useState, useEffect } from "react"
 import { useConfig, useAccount, useWriteContract } from "wagmi"
 import { readContract, waitForTransactionReceipt } from "@wagmi/core"
-import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi, oceansportAddress } from "@/contracts/constants"
+import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contracts/constants"
 import { useRouter } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
 import { formatPriceFromWei } from "@/utils/formatPrice"

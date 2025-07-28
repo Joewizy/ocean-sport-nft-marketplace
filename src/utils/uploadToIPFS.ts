@@ -12,7 +12,7 @@ async function uploadFileToPinata(file: File): Promise<string> {
     headers: {
       Authorization: `Basic ${btoa(`${PINATA_API_KEY}:${PINATA_SECRET_API_KEY}`)}`,
     },
-    body: formData as any,
+    body: formData,
   });
 
   if (!res.ok) {

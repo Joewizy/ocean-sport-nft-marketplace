@@ -1,7 +1,6 @@
 "use client"
 
-import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel, ExternalLink, CheckCircle, X, Zap } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Upload, Gavel, ExternalLink, CheckCircle, X, Zap } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState } from "react"
@@ -289,7 +288,7 @@ export default function CreatePage() {
                           <Zap className="text-yellow-600 dark:text-yellow-400" size={20} />
                           <div>
                             <h4 className="font-semibold text-gray-800 dark:text-white">Gas-Free Minting</h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">We'll cover the gas fees for you!</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">We&apos;ll cover the gas fees for you!</p>
                           </div>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">

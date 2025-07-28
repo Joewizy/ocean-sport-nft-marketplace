@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useAccount, useConfig, useBalance, useWriteContract } from "wagmi"
 import { motion, AnimatePresence } from "framer-motion"
 import { X, DollarSign, Coins, Zap, ExternalLink } from "lucide-react"
@@ -150,7 +150,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
       if (receipt) {
         console.log('Transaction Hash:', receipt.transactionHash)
         
-        const successMsg = type === 'bid' ? 'Bid placed successfully!' : 'NFT purchased successfully!'
+
         
         toast.success(
           <div className="flex flex-col gap-2">
@@ -175,9 +175,9 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
           }
         }, 3000)
       }
-    } catch (err: any) {
-      console.error('Transaction failed:', err?.message || err)
-      const msg = err?.shortMessage || err?.message || `Failed to ${type === 'bid' ? 'place bid' : 'complete purchase'}`
+    } catch (err: unknown) {
+      console.error('Transaction failed:', err)
+      const msg = `Failed to ${type === 'bid' ? 'place bid' : 'complete purchase'}`
       setError(msg)
       toast.error(msg)
     } finally {
@@ -278,7 +278,7 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                     <Zap className="text-yellow-600 dark:text-yellow-400" size={20} />
                     <div>
                       <h4 className="font-semibold text-gray-800 dark:text-white">Gas-Free Bidding</h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">We'll cover the gas fees for you!</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">We&apos;ll cover the gas fees for you!</p>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">

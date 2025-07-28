@@ -42,7 +42,7 @@ export default function HomePage() {
     },
     {
       id: 4,
-      title: "Batman Beyond Wallpaper",
+      title: "Batman Beyond",
       artist: "Bob Kane",
       price: "4.1 ETH",
       image: "/wallpapersden.com_batman-beyond-key-art_3148x1346.jpg"
@@ -102,7 +102,7 @@ export default function HomePage() {
           >
             Welcome to OceanSport - the premier NFT marketplace where creativity meets blockchain technology. 
             Discover, collect, and trade unique digital assets from sports memorabilia to ocean art, abstract designs to gaming collectibles. 
-            Whether you're passionate about athletics, marine life, or any form of digital art - every NFT tells a unique story.
+            Whether you&apos;re passionate about athletics, marine life, or any form of digital art - every NFT tells a unique story.
           </motion.p>
           
           <motion.div
@@ -228,7 +228,7 @@ export default function HomePage() {
               Ready to Make Your Mark?
             </h2>
             <p className="text-xl mb-8 opacity-90">
-              Join thousands of artists and collectors in the world's most vibrant NFT marketplace for all types of digital art.
+              Join thousands of artists and collectors in the world&apos;s most vibrant NFT marketplace for all types of digital art.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 

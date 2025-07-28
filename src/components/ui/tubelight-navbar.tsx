@@ -19,9 +19,8 @@ interface NavBarProps {
   className?: string
 }
 
-export function NavBar({ items, className }: NavBarProps) {
+export function NavBar({ items }: NavBarProps) {
   const pathname = usePathname()
-  const [isMobile, setIsMobile] = useState(false)
   
   // Determine active tab based on current pathname
   const getActiveTab = () => {
@@ -33,15 +32,7 @@ export function NavBar({ items, className }: NavBarProps) {
     return currentItem?.name || items[0].name
   }
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
 
-    handleResize()
-    window.addEventListener("resize", handleResize)
-    return () => window.removeEventListener("resize", handleResize)
-  }, [])
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 pt-6 px-4">
