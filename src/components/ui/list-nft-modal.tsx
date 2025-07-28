@@ -3,24 +3,16 @@
 import { useState } from "react"
 import { useConfig } from "wagmi"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Tag, Clock, Gavel, DollarSign, Coins } from "lucide-react"
+import { X, Tag, Clock, Gavel, DollarSign, Coins, Zap } from "lucide-react"
 import { waitForTransactionReceipt } from "@wagmi/core"
 import { useAccount, useWriteContract } from "wagmi"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAddress } from "@/contracts/constants"
 import { useMarketplaceApproval } from "@/hooks/useNFT"
 import { useRouter } from "next/navigation"
 import toast from 'react-hot-toast'
-
-interface ListNFTModalProps {
-  isOpen: boolean
-  onClose: () => void
-  nft: {
-    id: number
-    title: string
-    image: string
-    currentPrice?: string
-  }
-}
+import { ListNFTModalProps } from "@/utils/interfaces"
+import { useNFTOperations } from "@/hooks/useGasSponsorship"
+import { ExternalLink } from "lucide-react";
 
 export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
   const [listingType, setListingType] = useState<'fixed' | 'auction'>('fixed')
@@ -30,13 +22,12 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
   const [isUSDT, setIsUSDT] = useState<boolean>(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string>('')
-  
+  const [useSponsorship, setUseSponsorship] = useState(true)
+
   const config = useConfig()
   const account = useAccount()
   const { writeContractAsync } = useWriteContract()
   const router = useRouter()
-  
-  // Use our custom approval hook
   const { 
     setApproval, 
     checkApproval, 
@@ -44,6 +35,7 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
     approvalError, 
     clearError: clearApprovalError 
   } = useMarketplaceApproval()
+  const { sponsoredListNFT, sponsoredCreateAuction, isSponsoring, isEnabled } = useNFTOperations()
 
   const clearError = () => {
     setError('')
@@ -60,9 +52,7 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
     clearError()
     
     try {
-      // Check if marketplace is approved
       const isApproved = await checkApproval()
-      
       if (!isApproved) {
         const approvalSuccess = await setApproval()
         if (!approvalSuccess) {
@@ -71,20 +61,49 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
           return
         }
       }
-      
-      // Convert price to proper format (assuming 18 decimals)
+
       const priceInWei = BigInt(Math.floor(parseFloat(price) * 1e18))
-      
-      await listNft(priceInWei, nft.id.toString(), isUSDT)
-      
-      // Show success toast and redirect
-      toast.success('NFT listed successfully!')
-      onClose()
-      
-      // Redirect to profile page with listed tab
-      setTimeout(() => {
-        router.push('/profile?tab=listed')
-      }, 1500)
+      let txHash: string
+
+      if (useSponsorship && isEnabled) {
+        txHash = await sponsoredListNFT(
+          nftMarketplaceAddress,
+          oceansportAddress,
+          nft.id.toString(),
+          priceInWei.toString(),
+          isUSDT
+        )
+      } else {
+        txHash = await writeContractAsync({
+          abi: nftMarketplaceAbi,
+          address: nftMarketplaceAddress as `0x${string}`,
+          functionName: "listNFT",
+          args: [oceansportAddress, BigInt(nft.id), priceInWei, isUSDT],
+        })
+      }
+
+      const receipt = await waitForTransactionReceipt(config, { hash: txHash as `0x${string}` })
+      if (receipt) {
+        console.log("NFT successfully listed", receipt.transactionHash)
+        toast.success(
+          <div className="flex flex-col gap-2">
+            <span>NFT listed successfully!</span>
+            <a
+              href={`https://sepolia.basescan.org/tx/${receipt.transactionHash}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline text-sm flex items-center gap-1"
+            >
+              View transaction <ExternalLink size={12} />
+            </a>
+          </div>,
+          { duration: 6000 }
+        );
+        onClose()
+        setTimeout(() => {
+          router.push('/profile?tab=listed')
+        }, 1500)
+      }
     } catch (err) {
       console.error('Error listing NFT:', err)
       toast.error('Failed to list NFT. Please try again.')
@@ -104,9 +123,7 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
     clearError()
     
     try {
-      // Check if marketplace is approved
       const isApproved = await checkApproval()
-      
       if (!isApproved) {
         const approvalSuccess = await setApproval()
         if (!approvalSuccess) {
@@ -116,19 +133,50 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
         }
       }
       
-      const durationInSeconds = parseInt(duration) * 24 * 60 * 60 // Convert days to seconds
+      const durationInSeconds = parseInt(duration) * 24 * 60 * 60
       const priceInWei = BigInt(Math.floor(parseFloat(startingBid) * 1e18))
-      
-      await createAuction(priceInWei, nft.id.toString(), durationInSeconds, isUSDT)
-      
-      // Show success toast and redirect
-      toast.success('Auction created successfully! 🎉')
-      onClose()
-      
-      // Redirect to auction page
-      setTimeout(() => {
-        router.push('/auction')
-      }, 1500)
+      let txHash: string
+
+      if (useSponsorship && isEnabled) {
+        txHash = await sponsoredCreateAuction(
+          nftMarketplaceAddress,
+          oceansportAddress,
+          nft.id.toString(),
+          priceInWei.toString(),
+          BigInt(durationInSeconds).toString(),
+          isUSDT
+        )
+      } else {
+        txHash = await writeContractAsync({
+          abi: nftMarketplaceAbi,
+          address: nftMarketplaceAddress as `0x${string}`,
+          functionName: "createAuction",
+          args: [oceansportAddress, BigInt(nft.id), priceInWei, BigInt(durationInSeconds), isUSDT],
+        })
+      }
+
+      const receipt = await waitForTransactionReceipt(config, { hash: txHash as `0x${string}` })
+      if (receipt) {
+        console.log("Auction successfully created", receipt.transactionHash)
+        toast.success(
+        <div className="flex flex-col gap-2">
+          <span>Auction listed successfully!</span>
+          <a
+            href={`https://sepolia.basescan.org/tx/${receipt.transactionHash}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline text-sm flex items-center gap-1"
+          >
+            View transaction <ExternalLink size={12} />
+          </a>
+        </div>,
+        { duration: 6000 }
+      );
+        onClose()
+        setTimeout(() => {
+          router.push('/auction')
+        }, 1500)
+      }
     } catch (err) {
       console.error('Error creating auction:', err)
       toast.error('Failed to create auction. Please try again.')
@@ -138,52 +186,13 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
     }
   }
 
-  async function createAuction(startingPrice: bigint, tokenId: string, duration: number, isUSDT: boolean) {
-    try {
-      const auctionHash = await writeContractAsync({
-        abi: nftMarketplaceAbi,
-        address: nftMarketplaceAddress as `0x${string}`,
-        functionName: "createAuction",
-        args: [oceansportAddress, BigInt(tokenId), startingPrice, BigInt(duration), isUSDT],
-      })
-    
-      const auctionReceipt = await waitForTransactionReceipt(config, { hash: auctionHash })
-      if (auctionReceipt) {
-        console.log("Auction successfully created", auctionReceipt.transactionHash)
-      }
-    } catch (error) {
-      console.error("Error creating auction:", error)
-      throw error
-    }
-  }
-
-  async function listNft(price: bigint, tokenId: string, isUSDT: boolean) {
-    try {
-      const listNFTHash = await writeContractAsync({
-        abi: nftMarketplaceAbi,
-        address: nftMarketplaceAddress as `0x${string}`,
-        functionName: "listNFT",
-        args: [oceansportAddress, BigInt(tokenId), price, isUSDT],
-      })
-    
-      const listNFTReceipt = await waitForTransactionReceipt(config, { hash: listNFTHash })
-      if (listNFTReceipt) {
-        console.log("NFT successfully listed", listNFTReceipt.transactionHash)
-      }
-    } catch (error) {
-      console.error("Error listing NFT:", error)
-      throw error
-    }
-  }
-
-  const isLoading = isProcessing || approvalLoading
+  const isLoading = isProcessing || approvalLoading || isSponsoring
   const displayError = error || approvalError
 
   return (
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -192,14 +201,12 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
             onClick={onClose}
           />
           
-          {/* Modal */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
           >
-            {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
                 List NFT for Sale
@@ -212,9 +219,7 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
               </button>
             </div>
 
-            {/* Content */}
             <div className="p-6 space-y-6">
-              {/* NFT Preview */}
               <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                 <img
                   src={nft.image}
@@ -231,7 +236,6 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 </div>
               </div>
 
-              {/* Currency Selection */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Payment Currency
@@ -248,7 +252,6 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                     <Coins size={18} />
                     <span className="font-medium">ETH</span>
                   </button>
-                  
                   <button
                     onClick={() => setIsUSDT(true)}
                     className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
@@ -263,7 +266,26 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 </div>
               </div>
 
-              {/* Listing Type Selection */}
+              {isEnabled && (
+                <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Zap className="text-yellow-600 dark:text-yellow-400" size={16} />
+                    <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                      Gas-free listing available
+                    </span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useSponsorship}
+                      onChange={(e) => setUseSponsorship(e.target.checked)}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Listing Type
@@ -280,7 +302,6 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                     <Tag size={18} />
                     <span className="font-medium">Fixed Price</span>
                   </button>
-                  
                   <button
                     onClick={() => setListingType('auction')}
                     className={`p-3 rounded-lg border-2 transition-all flex items-center justify-center gap-2 ${
@@ -295,7 +316,6 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 </div>
               </div>
 
-              {/* Fixed Price Form */}
               {listingType === 'fixed' && (
                 <div className="space-y-4">
                   <div>
@@ -308,21 +328,19 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                       placeholder={isUSDT ? "100" : "2.5"}
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
-                      className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px Tamil Nadu-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  
                   <button
                     onClick={handleFixedPriceListing}
                     disabled={!price || isLoading}
                     className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Processing...' : `List for ${isUSDT ? 'USDT' : 'ETH'}`}
+                    {isLoading ? 'Processing...' : (useSponsorship && isEnabled ? `List for ${isUSDT ? 'USDT' : 'ETH'} (Gas-Free)` : `List for ${isUSDT ? 'USDT' : 'ETH'}`)}
                   </button>
                 </div>
               )}
 
-              {/* Auction Form */}
               {listingType === 'auction' && (
                 <div className="space-y-4">
                   <div>
@@ -338,7 +356,6 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                       className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Duration (days)
@@ -358,18 +375,16 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                     </select>
                     <p className="text-xs text-gray-500 mt-1">Choose auction duration</p>
                   </div>
-                  
                   <button
                     onClick={handleAuctionListing}
                     disabled={!startingBid || isLoading}
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
                   >
-                    {isLoading ? 'Processing...' : `Create ${isUSDT ? 'USDT' : 'ETH'} Auction`}
+                    {isLoading ? 'Processing...' : (useSponsorship && isEnabled ? `Create ${isUSDT ? 'USDT' : 'ETH'} Auction (Gas-Free)` : `Create ${isUSDT ? 'USDT' : 'ETH'} Auction`)}
                   </button>
                 </div>
               )}
 
-              {/* Error Display */}
               {displayError && (
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <p className="text-red-600 dark:text-red-400 text-sm">{displayError}</p>
@@ -382,7 +397,6 @@ export function ListNFTModal({ isOpen, onClose, nft }: ListNFTModalProps) {
                 </div>
               )}
 
-              {/* Info */}
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                 <div className="flex items-start gap-3">
                   <Clock className="text-blue-600 mt-0.5" size={16} />

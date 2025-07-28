@@ -8,24 +8,11 @@ import { useState, useEffect } from "react"
 import { useConfig } from "wagmi"
 import { readContract } from "@wagmi/core"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contracts/constants"
-
-interface LiveAuction {
-  id: number
-  title: string
-  artist: string
-  currentBid: string
-  currentBidUSD?: string
-  bidCount: number
-  timeLeft: string
-  image: string
-  description?: string
-  endTime: number
-  bidHistory?: Array<{ bidder: string; amount: string; time: string }>
-}
+import { LiveAuction } from "@/utils/interfaces"
 
 export default function AuctionPage() {
   const [timeLeft, setTimeLeft] = useState({
-    days: 2,
+    days: 20,
     hours: 14,
     minutes: 32,
     seconds: 45
@@ -44,7 +31,6 @@ export default function AuctionPage() {
     { name: 'Profile', url: '/profile', icon: User },
   ]
 
-  // Fetch auctions on component mount
   useEffect(() => {
     fetchAuctions()
   }, [])
@@ -69,7 +55,6 @@ export default function AuctionPage() {
     return () => clearInterval(timer)
   }, [])
 
-  // Fetch live auctions from blockchain
   const fetchAuctions = async () => {
     try {
       setIsLoading(true)
@@ -140,7 +125,8 @@ export default function AuctionPage() {
             description: metadata.description || '',
             artist: auction.seller.slice(0,10),
             currentBid: hasBids ? `${currentBidAmount.toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}` : '',
-            bidCount: hasBids ? 1 : 0, // Simple bid count
+            startingPrice: `${(Number(auction.startingPrice) / 1e18).toFixed(4)} ${auction.isUSDT ? 'USDT' : 'ETH'}`,
+            bidCount: hasBids ? 1 : 0,
             timeLeft: timeRemaining > 0 ? `${days}d ${hours}h ${minutes}m` : 'Ended',
             endTime: auction.endTime,
             hasBids: hasBids
@@ -170,13 +156,15 @@ export default function AuctionPage() {
           id: 1,
           title: "Whale Migration #003",
           artist: "OceanWatcher",
-          description: "A breathtaking capture of humpback whales during their annual migration. This rare moment showcases the majestic beauty of these gentle giants as they traverse the deep blue ocean.",
+          description: "A breathtaking capture of humpback whales during their annual migration.",
           currentBid: "5.2 ETH",
+          startingPrice: "4.0 ETH", 
           currentBidUSD: "$8,840",
           bidCount: 12,
           timeLeft: "2d 14h 32m",
           image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
           endTime: Math.floor(Date.now() / 1000) + 86400 * 2,
+          hasBids: true,
           bidHistory: [
             { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
             { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
@@ -192,13 +180,15 @@ export default function AuctionPage() {
         id: 1,
         title: "Whale Migration #003",
         artist: "OceanWatcher",
-        description: "A breathtaking capture of humpback whales during their annual migration. This rare moment showcases the majestic beauty of these gentle giants as they traverse the deep blue ocean.",
+        description: "A breathtaking capture of humpback whales during their annual migration.",
         currentBid: "5.2 ETH",
+        startingPrice: "4.0 ETH",
         currentBidUSD: "$8,840",
         bidCount: 12,
         timeLeft: "2d 14h 32m",
         image: "https://images.unsplash.com/photo-1544551763-77ef2d0cfc6c?w=800&h=800&fit=crop&crop=center",
         endTime: Math.floor(Date.now() / 1000) + 86400 * 2,
+        hasBids: true, 
         bidHistory: [
           { bidder: "0x1234...5678", amount: "5.2 ETH", time: "2 minutes ago" },
           { bidder: "0x8765...4321", amount: "5.0 ETH", time: "15 minutes ago" },
@@ -298,17 +288,28 @@ export default function AuctionPage() {
                   </div>
                 </div>
 
-                {/* Current Bid */}
+                {/* Current Bid or Starting Price */}
                 <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-6">
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Current Bid</div>
-                      <div className="text-2xl font-bold text-gray-800 dark:text-white">
-                        {featuredAuction.currentBid}
-                      </div>
-                      <div className="text-gray-600 dark:text-gray-400">
-                        {featuredAuction.currentBidUSD}
-                      </div>
+                      {featuredAuction.hasBids ? (
+                        <>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">Current Bid</div>
+                          <div className="text-2xl font-bold text-gray-800 dark:text-white">
+                            {featuredAuction.currentBid}
+                          </div>
+                          <div className="text-gray-600 dark:text-gray-400">
+                            {featuredAuction.currentBidUSD}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm text-gray-600 dark:text-gray-400">Starting Price</div>
+                          <div className="text-2xl font-bold text-gray-800 dark:text-white">
+                            {featuredAuction.startingPrice}
+                          </div>
+                        </>
+                      )}
                     </div>
                     <div className="text-right">
                       <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -400,7 +401,7 @@ export default function AuctionPage() {
                   
                   <div className="flex justify-between items-center mb-3">
                     <div>
-                      {(auction as any).hasBids ? (
+                      {auction.hasBids ? (
                         <>
                           <div className="text-xs text-gray-600 dark:text-gray-400">Current Bid</div>
                           <div className="text-lg font-bold text-blue-600">{auction.currentBid}</div>
@@ -408,7 +409,7 @@ export default function AuctionPage() {
                       ) : (
                         <>
                           <div className="text-xs text-gray-600 dark:text-gray-400">Starting Price</div>
-                          <div className="text-lg font-bold text-gray-600">No bids yet</div>
+                          <div className="text-lg font-bold text-gray-600">{auction.startingPrice}</div>
                         </>
                       )}
                     </div>

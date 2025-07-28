@@ -1,7 +1,8 @@
+// Updated CreatePage component with gas sponsorship
 "use client"
 
 import Image from "next/image"
-import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel, ExternalLink, CheckCircle, X } from "lucide-react"
+import { Home, ShoppingBag, Plus, User, Upload, Palette, Camera, Gavel, ExternalLink, CheckCircle, X, Zap } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import { motion } from "framer-motion"
 import { useState } from "react"
@@ -11,6 +12,7 @@ import { waitForTransactionReceipt } from "@wagmi/core"
 import { useRouter } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
 import NFTPreview from "@/components/NFTPreview"
+import { useNFTOperations } from "@/hooks/useGasSponsorship"
 
 export default function CreatePage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -20,11 +22,14 @@ export default function CreatePage() {
   const [description, setDescription] = useState("")
   const [isUploading, setIsUploading] = useState(false)
   const [nftTx, setNftTx] = useState<string | `0x${string}`>()
+  const [useSponsorship, setUseSponsorship] = useState(true)
 
   const account = useAccount()
   const config = useConfig()
   const { writeContractAsync } = useWriteContract()
+  const { sponsoredMint, isSponsoring, isEnabled } = useNFTOperations()
   const router = useRouter()
+
   const navItems = [
     { name: 'Home', url: '/', icon: Home },
     { name: 'Marketplace', url: '/marketplace', icon: ShoppingBag },
@@ -60,15 +65,21 @@ export default function CreatePage() {
   }
 
   async function handleMint() {
-    const fileToMint = croppedFile || selectedFile // Use cropped version if available
+    const fileToMint = croppedFile || selectedFile
     
     if (!name || !fileToMint) {
       toast.error("Please enter a name and upload a file.")
       return
     }
 
+    if (!account.address) {
+      toast.error("Please connect your wallet.")
+      return
+    }
+
     try {
       setIsUploading(true)
+      
       // Convert file to base64 Data URL to pass in JSON
       const base64Image = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
@@ -84,19 +95,46 @@ export default function CreatePage() {
         body: JSON.stringify({ name, description, image: base64Image }),
       })
       const { tokenURI } = await response.json()
-            
-      const mintHash = await writeContractAsync({
-        abi: oceansportAbi,
-        address: oceansportAddress as `0x${string}`,
-        functionName: "safeMint",
-        args: [account.address, tokenURI],
-      })
 
-      const receipt = await waitForTransactionReceipt(config, { hash: mintHash })
+      let mintHash: string
+      console.log("Token URI is:", tokenURI)
+
+      // Choose between sponsored and regular transaction
+      if (useSponsorship && isEnabled) {
+        // Use sponsored transaction
+        mintHash = await sponsoredMint(
+          oceansportAddress as string,
+          account.address,
+          tokenURI
+        )
+        
+        toast.success(
+          <div className="flex items-center gap-2">
+            <Zap className="text-yellow-400" size={16} />
+            <span>Gas-free mint successful! 🎉</span>
+          </div>,
+          { duration: 6000 }
+        )
+      } else {
+        // Use regular transaction
+        mintHash = await writeContractAsync({
+          abi: oceansportAbi,
+          address: oceansportAddress as `0x${string}`,
+          functionName: "safeMint",
+          args: [account.address, tokenURI],
+        })
+
+        toast.success("NFT successfully minted! 🎉", { duration: 6000 })
+      }
+
+      // Wait for transaction receipt
+      const receipt = await waitForTransactionReceipt(config, { hash: mintHash as `0x${string}` })
       setNftTx(receipt.transactionHash)
+
+      // Show transaction link
       toast.success(
         <div className="flex flex-col gap-2">
-          <span>NFT successfully minted! 🎉</span>
+          <span>Transaction confirmed!</span>
           <a 
             href={`https://sepolia.basescan.org/tx/${receipt.transactionHash}`}
             target="_blank"
@@ -112,6 +150,7 @@ export default function CreatePage() {
       setTimeout(() => {
         router.push('/profile?tab=collected')
       }, 3000)
+
     } catch (err) {
       console.error("Minting failed:", err)
       toast.error("Could not mint NFT. Please try again.")
@@ -119,6 +158,8 @@ export default function CreatePage() {
       setIsUploading(false)
     }
   }
+
+  const isProcessing = isUploading || isSponsoring
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
@@ -139,6 +180,14 @@ export default function CreatePage() {
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
               Mint your ocean-inspired or sports-themed digital art and store it forever
             </p>
+            {isEnabled && (
+              <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-yellow-100 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-full">
+                <Zap className="text-yellow-600 dark:text-yellow-400" size={16} />
+                <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  Gas-free minting available!
+                </span>
+              </div>
+            )}
           </motion.div>
 
           {/* Form */}
@@ -153,7 +202,7 @@ export default function CreatePage() {
               <div>
                 <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-6">Upload Your Art</h3>
                 
-                  {preview ? (
+                {preview ? (
                   // Preview Mode
                   <div className="relative">
                     <NFTPreview preview={preview} onCroppedImage={handleCroppedImage} />
@@ -233,6 +282,30 @@ export default function CreatePage() {
                     />
                   </div>
 
+                  {/* Gas Sponsorship Toggle */}
+                  {isEnabled && (
+                    <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Zap className="text-yellow-600 dark:text-yellow-400" size={20} />
+                          <div>
+                            <h4 className="font-semibold text-gray-800 dark:text-white">Gas-Free Minting</h4>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">We'll cover the gas fees for you!</p>
+                          </div>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={useSponsorship}
+                            onChange={(e) => setUseSponsorship(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Success Message with Transaction Link */}
                   {nftTx && (
                     <motion.div
@@ -248,7 +321,7 @@ export default function CreatePage() {
                       </div>
                       <div className="flex flex-col sm:flex-row gap-3">
                         <a
-                          href={`https://sepolia.etherscan.io/tx/${nftTx}`}
+                          href={`https://sepolia.basescan.org/tx/${nftTx}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
@@ -270,10 +343,22 @@ export default function CreatePage() {
                   <div className="pt-6">
                     <button
                       onClick={handleMint}
-                      disabled={isUploading || !!nftTx}
-                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed"
+                      disabled={isProcessing || !!nftTx}
+                      className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
-                      {isUploading ? "Uploading & Minting..." : nftTx ? "NFT Minted!" : "Mint NFT"}
+                      {isProcessing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                          {isSponsoring ? "Sponsoring..." : "Uploading & Minting..."}
+                        </>
+                      ) : nftTx ? (
+                        "NFT Minted!"
+                      ) : (
+                        <>
+                          {useSponsorship && isEnabled && <Zap size={18} />}
+                          {useSponsorship && isEnabled ? "Mint NFT (Gas-Free)" : "Mint NFT"}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
