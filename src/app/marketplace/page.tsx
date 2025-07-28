@@ -11,6 +11,9 @@ import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contr
 import { useRouter } from "next/navigation"
 import toast, { Toaster } from 'react-hot-toast'
 import { formatPriceFromWei } from "@/utils/formatPrice"
+import { PlaceBidModal } from "@/components/PlaceBidModal"
+import { USDTMintModal } from "@/components/USDTMintModal"
+import { ChainValidation } from "@/components/ChainValidation"
 
 interface ListedNFT {
   listingId: number
@@ -33,7 +36,9 @@ export default function MarketplacePage() {
   const [listedNFTs, setListedNFTs] = useState<ListedNFT[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCurrency, setSelectedCurrency] = useState<'all' | 'eth' | 'usdt'>('all')
-  const [isProcessingPurchase, setIsProcessingPurchase] = useState<number | null>(null)
+  const [isBuyModalOpen, setIsBuyModalOpen] = useState(false)
+  const [selectedNFT, setSelectedNFT] = useState<ListedNFT | null>(null)
+  const [isUSDTMintModalOpen, setIsUSDTMintModalOpen] = useState(false)
 
   const config = useConfig()
   const account = useAccount()
@@ -143,39 +148,20 @@ export default function MarketplacePage() {
     }
   }
 
-  const handlePurchase = async (listingId: number, price: bigint, isUSDT: boolean) => {
+  const handleBuyNFT = (nft: ListedNFT) => {
     if (!account.address) {
-      alert('Please connect your wallet')
+      toast.error(
+        <div className="flex flex-col gap-2">
+          <span>Please connect your wallet to purchase NFTs</span>
+          <span className="text-sm opacity-80">Click the "Connect Wallet" button in the top right</span>
+        </div>,
+        { duration: 5000 }
+      )
       return
     }
 
-    setIsProcessingPurchase(listingId)
-    
-    try {
-      const buyHash = await writeContractAsync({
-        abi: nftMarketplaceAbi,
-        address: nftMarketplaceAddress as `0x${string}`,
-        functionName: "buyNFT",
-        args: [BigInt(listingId)],
-        value: isUSDT ? BigInt(0) : price, // Send ETH if not USDT
-      })
-
-      const receipt = await waitForTransactionReceipt(config, { hash: buyHash })
-      
-      if (receipt) {
-        toast.success('NFT purchased successfully! 🎉')
-        fetchListedNFTs() // Refresh the listings
-        // Redirect to profile page with collected tab
-        setTimeout(() => {
-          router.push('/profile?tab=collected')
-        }, 1500)
-      }
-    } catch (error) {
-      console.error('Error purchasing NFT:', error)
-      toast.error('Failed to purchase NFT. Please try again.')
-    } finally {
-      setIsProcessingPurchase(null)
-    }
+    setSelectedNFT(nft)
+    setIsBuyModalOpen(true)
   }
 
 
@@ -206,212 +192,301 @@ export default function MarketplacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
-      <NavBar items={navItems} />
+    <ChainValidation>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
+        <NavBar items={navItems} />
       
-      {/* Header */}
-      <section className="pt-24 pb-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-12"
-          >
-            <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 bg-clip-text text-transparent mb-4">
-              Marketplace
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Discover and collect unique ocean-inspired NFTs from artists around the world
-            </p>
-          </motion.div>
+        {/* Header */}
+        <section className="pt-24 pb-12 px-4">
+          <div className="max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-12"
+            >
+              <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-cyan-500 to-teal-500 bg-clip-text text-transparent mb-4">
+                Marketplace
+              </h1>
+              <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+                Discover and collect unique ocean-inspired NFTs from artists around the world
+              </p>
+            </motion.div>
 
-          {/* Search and Filter Bar */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg mb-8"
-          >
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  placeholder="Search NFTs, artists, collections..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              
-              <div className="flex items-center gap-4">
-                {/* Currency Filter */}
-                <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <button
-                    onClick={() => setSelectedCurrency('all')}
-                    className={`px-3 py-2 text-sm ${selectedCurrency === 'all' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
-                  >
-                    All
-                  </button>
-                  <button
-                    onClick={() => setSelectedCurrency('eth')}
-                    className={`px-3 py-2 text-sm flex items-center gap-1 ${selectedCurrency === 'eth' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
-                  >
-                    <Coins size={14} />
-                    ETH
-                  </button>
-                  <button
-                    onClick={() => setSelectedCurrency('usdt')}
-                    className={`px-3 py-2 text-sm flex items-center gap-1 ${selectedCurrency === 'usdt' ? 'bg-green-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
-                  >
-                    <DollarSign size={14} />
-                    USDT
-                  </button>
+            {/* Search and Filter Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg mb-8"
+            >
+              <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Search NFTs, artists, collections..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
                 
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                  <Filter size={18} />
-                  Filter
-                </button>
-                
-                <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
-                  >
-                    <Grid size={18} />
+                <div className="flex items-center gap-4">
+                  {/* Currency Filter */}
+                  <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <button
+                      onClick={() => setSelectedCurrency('all')}
+                      className={`px-3 py-2 text-sm ${selectedCurrency === 'all' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
+                    >
+                      All
+                    </button>
+                    <button
+                      onClick={() => setSelectedCurrency('eth')}
+                      className={`px-3 py-2 text-sm flex items-center gap-1 ${selectedCurrency === 'eth' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
+                    >
+                      <Coins size={14} />
+                      ETH
+                    </button>
+                    <button
+                      onClick={() => setSelectedCurrency('usdt')}
+                      className={`px-3 py-2 text-sm flex items-center gap-1 ${selectedCurrency === 'usdt' ? 'bg-green-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
+                    >
+                      <DollarSign size={14} />
+                      USDT
+                    </button>
+                  </div>
+                  
+                  <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <Filter size={18} />
+                    Filter
                   </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
-                  >
-                    <List size={18} />
-                  </button>
+                  
+                  <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
+                    >
+                      <Grid size={18} />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400'} transition-colors`}
+                    >
+                      <List size={18} />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
 
-          {/* Results Count */}
-          <div className="mb-6">
-            <p className="text-gray-600 dark:text-gray-400">
-              {filteredNFTs.length} NFT{filteredNFTs.length !== 1 ? 's' : ''} found
-            </p>
-          </div>
-        </div>
-      </section>
+            {/* Connect Wallet Banner */}
+            {!account.address && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-6"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                      <User className="text-blue-600 dark:text-blue-400" size={16} />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                      Connect Your Wallet
+                    </h3>
+                    <p className="text-sm text-blue-600 dark:text-blue-300">
+                      You can browse all NFTs, but connect your wallet to purchase and interact with the marketplace.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
-      {/* NFT Grid */}
-      <section className="pb-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Loading NFTs...</h3>
-              <p className="text-gray-600 dark:text-gray-400">Fetching the latest marketplace listings</p>
-            </div>
-          ) : filteredNFTs.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🌊</div>
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs Found</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-8">
-                {searchTerm ? 'Try adjusting your search terms' : 'No NFTs are currently listed in the marketplace'}
+            {/* USDT Minting Banner */}
+            {account.address && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-6"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                        <DollarSign className="text-green-600 dark:text-green-400" size={16} />
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-green-800 dark:text-green-200">
+                        Need USDT for Testing?
+                      </h3>
+                      <p className="text-sm text-green-600 dark:text-green-300">
+                        Mint test USDT tokens to explore USDT-based purchases and bids.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setIsUSDTMintModalOpen(true)}
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Mint USDT
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Results Count */}
+            <div className="mb-6">
+              <p className="text-gray-600 dark:text-gray-400">
+                {filteredNFTs.length} NFT{filteredNFTs.length !== 1 ? 's' : ''} found
               </p>
             </div>
-          ) : (
-            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
-              {filteredNFTs.map((nft, index) => (
-                <motion.div
-                  key={nft.listingId}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: index * 0.1 }}
-                  className={`bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 ${
-                    viewMode === 'list' ? 'flex flex-row items-stretch' : 'flex flex-col'
-                  }`}
-                >
-                  <div className={`relative ${viewMode === 'list' ? 'w-32 h-32' : 'aspect-square'}`}>
-                    {nft.image ? (
-                      <Image
-                        src={nft.image}
-                        alt={nft.title}
-                        fill
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                        <span className="text-gray-400">No Image</span>
-                      </div>
-                    )}
-                    <div className="absolute top-4 right-4 flex gap-2">
-                      <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        nft.isUSDT 
-                          ? 'bg-green-600 text-white' 
-                          : 'bg-blue-600 text-white'
-                      }`}>
-                        {nft.isUSDT ? 'USDT' : 'ETH'}
-                      </div>
-                    </div>
-                  </div>
-                  <div className={`p-5 ${viewMode === 'list' ? 'flex-1 flex flex-col justify-between min-h-0' : 'flex-1 flex flex-col'}`}>
-                    <div>
-                      <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2 truncate">{nft.title}</h3>
-                      <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm truncate">by {nft.artist}</p>
-                      {nft.description && (
-                        <p className={`text-sm text-gray-500 dark:text-gray-400 mb-4 ${
-                          viewMode === 'list' ? 'line-clamp-2' : 'line-clamp-3'
-                        }`}>
-                          {nft.description}
-                        </p>
+          </div>
+        </section>
+
+        {/* NFT Grid */}
+        <section className="pb-20 px-4">
+          <div className="max-w-6xl mx-auto">
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Loading NFTs...</h3>
+                <p className="text-gray-600 dark:text-gray-400">Fetching the latest marketplace listings</p>
+              </div>
+            ) : filteredNFTs.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🌊</div>
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">No NFTs Found</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                  {searchTerm ? 'Try adjusting your search terms' : 'No NFTs are currently listed in the marketplace'}
+                </p>
+              </div>
+            ) : (
+              <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
+                {filteredNFTs.map((nft, index) => (
+                  <motion.div
+                    key={nft.listingId}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, delay: index * 0.1 }}
+                    className={`bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 ${
+                      viewMode === 'list' ? 'flex flex-row items-stretch' : 'flex flex-col'
+                    }`}
+                  >
+                    <div className={`relative ${viewMode === 'list' ? 'w-32 h-32' : 'aspect-square'}`}>
+                      {nft.image ? (
+                        <Image
+                          src={nft.image}
+                          alt={nft.title}
+                          fill
+                          className="object-contain"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                          <span className="text-gray-400">No Image</span>
+                        </div>
                       )}
+                      <div className="absolute top-4 right-4 flex gap-2">
+                        <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          nft.isUSDT 
+                            ? 'bg-green-600 text-white' 
+                            : 'bg-blue-600 text-white'
+                        }`}>
+                          {nft.isUSDT ? 'USDT' : 'ETH'}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xl font-bold text-blue-600">
-                        {formatPriceFromWei(nft.price, nft.isUSDT)}
-                      </span>
-                      <button
-                        onClick={() => handlePurchase(nft.listingId, nft.price, nft.isUSDT)}
-                        disabled={isProcessingPurchase === nft.listingId || nft.seller.toLowerCase() === account.address?.toLowerCase()}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg transition-colors text-sm"
-                      >
-                        {isProcessingPurchase === nft.listingId ? 'Processing...' : 
-                         nft.seller.toLowerCase() === account.address?.toLowerCase() ? 'Your NFT' : 'Buy Now'}
-                      </button>
+                    <div className={`p-5 ${viewMode === 'list' ? 'flex-1 flex flex-col justify-between min-h-0' : 'flex-1 flex flex-col'}`}>
+                      <div>
+                        <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-2 truncate">{nft.title}</h3>
+                        <p className="text-gray-600 dark:text-gray-400 mb-2 text-sm truncate">by {nft.artist}</p>
+                        {nft.description && (
+                          <p className={`text-sm text-gray-500 dark:text-gray-400 mb-4 ${
+                            viewMode === 'list' ? 'line-clamp-2' : 'line-clamp-3'
+                          }`}>
+                            {nft.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xl font-bold text-blue-600">
+                          {formatPriceFromWei(nft.price, nft.isUSDT)}
+                        </span>
+                        <button
+                          onClick={() => handleBuyNFT(nft)}
+                          disabled={nft.seller.toLowerCase() === account.address?.toLowerCase()}
+                          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-5 py-2 rounded-lg transition-colors text-sm"
+                        >
+                          {nft.seller.toLowerCase() === account.address?.toLowerCase() ? 'Your NFT' : 'Buy Now'}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-      
-      {/* Toast Container */}
-      <Toaster 
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
-            duration: 3000,
-            iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
-            },
-          },
-          error: {
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+        
+        {/* Toast Container */}
+        <Toaster 
+          position="top-right"
+          toastOptions={{
             duration: 4000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            style: {
+              background: '#363636',
+              color: '#fff',
             },
-          },
-        }}
-      />
-    </div>
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#4ade80',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+
+        {/* Place Bid Modal */}
+        {selectedNFT && (
+          <PlaceBidModal
+            isOpen={isBuyModalOpen}
+            onClose={() => {
+              setIsBuyModalOpen(false)
+              setSelectedNFT(null)
+              // Refresh listings after modal closes
+              fetchListedNFTs()
+            }}
+            nft={{
+              id: selectedNFT.tokenId,
+              title: selectedNFT.title,
+              image: selectedNFT.image,
+              price: selectedNFT.price,
+              isUSDT: selectedNFT.isUSDT,
+              listingId: selectedNFT.listingId,
+            }}
+            type="buy"
+          />
+        )}
+
+        {/* USDT Minting Modal */}
+        <USDTMintModal
+          isOpen={isUSDTMintModalOpen}
+          onClose={() => setIsUSDTMintModalOpen(false)}
+        />
+      </div>
+    </ChainValidation>
   )
 }

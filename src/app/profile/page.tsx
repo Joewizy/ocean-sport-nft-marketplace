@@ -9,6 +9,7 @@ import { useState, useEffect, Suspense} from "react"
 import { readContract } from "@wagmi/core";
 import { oceansportAbi, oceansportAddress, nftMarketplaceAbi, nftMarketplaceAddress } from "@/contracts/constants"
 import { useAccount, useConfig } from "wagmi"
+import { ChainValidation } from "@/components/ChainValidation"
 import { FetchedNFTs } from "@/utils/interfaces"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Toaster } from 'react-hot-toast'
@@ -567,7 +568,9 @@ export default function ProfilePage() {
         </div>
       </div>
     }>
-      <ProfileContent />
+      <ChainValidation>
+        <ProfileContent />
+      </ChainValidation>
     </Suspense>
   )
 }

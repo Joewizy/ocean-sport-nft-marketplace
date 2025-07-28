@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useConfig, useAccount } from "wagmi"
 import { motion } from "framer-motion"
-import { Clock, Users, Gavel, Home, ShoppingBag, Plus, User } from "lucide-react"
+import { Clock, Users, Gavel, Home, ShoppingBag, Plus, User, DollarSign } from "lucide-react"
 import { readContract } from "@wagmi/core"
 import { nftMarketplaceAbi, nftMarketplaceAddress, oceansportAbi } from "@/contracts/constants"
 import { LiveAuction, ContractAuction } from "@/utils/interfaces"
@@ -11,6 +11,9 @@ import { PlaceBidModal } from "@/components/PlaceBidModal"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 import Image from "next/image"
 import { Toaster } from "react-hot-toast"
+import { toast } from "react-hot-toast"
+import { USDTMintModal } from "@/components/USDTMintModal"
+import { ChainValidation } from "@/components/ChainValidation"
 
 // Utility to parse '4.0 ETH' or '5.2 USDT' to BigInt in wei
 function parseAmountToWei(amountStr: string): bigint {
@@ -33,6 +36,7 @@ export default function AuctionPage() {
   const [featuredContractAuction, setFeaturedContractAuction] = useState<ContractAuction | null>(null)
   const [isBidModalOpen, setIsBidModalOpen] = useState(false)
   const [selectedContractAuction, setSelectedContractAuction] = useState<ContractAuction | null>(null)
+  const [isUSDTMintModalOpen, setIsUSDTMintModalOpen] = useState(false)
   
   const config = useConfig()
   const account = useAccount()
@@ -79,6 +83,17 @@ export default function AuctionPage() {
 
   // Handler to open modal for a given auction
   const handleOpenBidModal = (auction: ContractAuction) => {
+    if (!account.address) {
+      toast.error(
+        <div className="flex flex-col gap-2">
+          <span>Please connect your wallet to place bids</span>
+          <span className="text-sm opacity-80">Click the "Connect Wallet" button in the top right</span>
+        </div>,
+        { duration: 5000 }
+      )
+      return
+    }
+    
     setSelectedContractAuction(auction)
     setIsBidModalOpen(true)
   }
@@ -195,8 +210,9 @@ export default function AuctionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
-      <NavBar items={navItems} />
+    <ChainValidation>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 dark:from-gray-900 dark:via-blue-900 dark:to-teal-900">
+        <NavBar items={navItems} />
       
       {/* Header */}
       <section className="pt-24 pb-12 px-4">
@@ -214,6 +230,66 @@ export default function AuctionPage() {
               Bid on exclusive ocean-inspired NFTs and own a piece of digital marine art history
             </p>
           </motion.div>
+
+          {/* Connect Wallet Banner */}
+          {!account.address && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-8 max-w-2xl mx-auto"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center">
+                    <User className="text-blue-600 dark:text-blue-400" size={16} />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                    Connect Your Wallet
+                  </h3>
+                  <p className="text-sm text-blue-600 dark:text-blue-300">
+                    You can view all auctions, but connect your wallet to place bids and participate in auctions.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* USDT Minting Banner */}
+          {account.address && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 mb-8 max-w-2xl mx-auto"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center">
+                      <DollarSign className="text-green-600 dark:text-green-400" size={16} />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-green-800 dark:text-green-200">
+                      Need USDT for Testing?
+                    </h3>
+                    <p className="text-sm text-green-600 dark:text-green-300">
+                      Mint test USDT tokens to explore USDT-based auctions and bids.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsUSDTMintModalOpen(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Mint USDT
+                </button>
+              </div>
+            </motion.div>
+          )}
         </div>
       </section>
 
@@ -457,6 +533,12 @@ export default function AuctionPage() {
         } : undefined}
         type="bid"
       />
+
+      {/* USDT Minting Modal */}
+      <USDTMintModal
+        isOpen={isUSDTMintModalOpen}
+        onClose={() => setIsUSDTMintModalOpen(false)}
+      />
       
       {/* Toast Container */}
       <Toaster
@@ -470,5 +552,6 @@ export default function AuctionPage() {
         }}
       />
     </div>
+    </ChainValidation>
   )
 }

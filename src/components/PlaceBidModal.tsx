@@ -80,19 +80,58 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
   }, [isOpen, clearUSDTApprovalError])
   
   const handleAction = async () => {
-    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-      setError("Please enter a valid amount")
+    if (!account.address) {
+      setError("Please connect your wallet to place bids")
+      toast.error(
+        <div className="flex flex-col gap-2">
+          <span>Please connect your wallet to place bids</span>
+          <span className="text-sm opacity-80">Click the "Connect Wallet" button in the top right</span>
+        </div>,
+        { duration: 5000 }
+      )
       return
     }
-    
+
     setIsProcessing(true)
     clearError()
-    
+
     try {
-      const amountInWei = BigInt(Math.floor(parseFloat(amount) * 1e18))
       let txHash: string
 
-      if (type === 'bid' && auction) {
+      if (type === 'buy' && nft) {
+        // Buy NFT logic - use the NFT price directly
+        const amountInWei = nft.price
+        
+        // Check USDT approval for USDT purchases
+        if (nft.isUSDT) {
+          const isApproved = await checkUSDTApproval(amountInWei)
+          if (!isApproved) {
+            const approvalSuccess = await setUSDTApproval(amountInWei)
+            if (!approvalSuccess) {
+              setError("Failed to approve USDT spending. Please try again.")
+              setIsProcessing(false)
+              return
+            }
+          }
+        }
+        
+        txHash = await writeContractAsync({
+          abi: nftMarketplaceAbi,
+          address: nftMarketplaceAddress as `0x${string}`,
+          functionName: "buyNFT",
+          args: [BigInt(nft.listingId)],
+          value: nft.isUSDT ? BigInt(0) : amountInWei,
+        })
+      } else if (type === 'bid' && auction) {
+        // Validate amount for bid transactions
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+          setError("Please enter a valid amount")
+          setIsProcessing(false)
+          return
+        }
+
+        const amountInWei = BigInt(Math.floor(parseFloat(amount) * 1e18))
+
         // Place bid logic
         if (auction.isUSDT) {
           // USDT bidding - check approval first
@@ -132,15 +171,6 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
             })
           }
         }
-      } else if (type === 'buy' && nft) {
-        // Buy NFT logic
-        txHash = await writeContractAsync({
-          abi: nftMarketplaceAbi,
-          address: nftMarketplaceAddress as `0x${string}`,
-          functionName: "buyNFT",
-          args: [BigInt(nft.listingId)],
-          value: nft.isUSDT ? BigInt(0) : amountInWei,
-        })
       } else {
         throw new Error('Invalid action')
       }
@@ -149,8 +179,6 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
       const receipt = await waitForTransactionReceipt(config, { hash: txHash as `0x${string}` })
       if (receipt) {
         console.log('Transaction Hash:', receipt.transactionHash)
-        
-
         
         toast.success(
           <div className="flex flex-col gap-2">
@@ -258,12 +286,24 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   {type === 'bid' ? 'Bid Amount' : 'Purchase Price'} ({currencyType ? 'USDT' : 'ETH'})
                 </label>
-                <input
-                  type="number" step="0.001" placeholder={type === 'bid' ? "Enter your bid" : "Confirm amount"}
-                  value={amount} onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={isLoading}
-                />
+                {type === 'buy' && nft ? (
+                  <div className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-white">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">{formatPriceFromWei(nft.price, nft.isUSDT)}</span>
+                      <span className="text-sm text-gray-500">Fixed Price</span>
+                    </div>
+                  </div>
+                ) : (
+                  <input
+                    type="number" 
+                    step="0.001" 
+                    placeholder={type === 'bid' ? "Enter your bid" : "Confirm amount"}
+                    value={amount} 
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={isLoading}
+                  />
+                )}
                 {type === 'bid' && auction && auction.currentBid > BigInt(0) && (
                   <p className="text-xs text-gray-500 mt-2">
                     Minimum bid: {formatPriceFromWei(auction.currentBid * BigInt(105) / BigInt(100), auction.isUSDT)}
@@ -308,13 +348,13 @@ export function PlaceBidModal({ isOpen, onClose, auction, nft, type }: PlaceBidM
               {/* Action Button */}
               <button
                 onClick={handleAction}
-                disabled={!amount || isLoading}
+                disabled={isLoading || (type === 'bid' && (!amount || isNaN(Number(amount)) || Number(amount) <= 0))}
                 className={`w-full ${type === 'bid' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700' : 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'} disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:cursor-not-allowed`}
               >
                 {isLoading ? (
                   <div className="flex items-center justify-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Processing...
+                    {usdtApprovalLoading ? 'Approving USDT...' : 'Processing...'}
                   </div>
                 ) : (
                   type === 'bid' ? `Place Bid (${currencyType ? 'USDT' : 'ETH'})` : `Buy Now (${currencyType ? 'USDT' : 'ETH'})`
