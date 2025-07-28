@@ -48,15 +48,7 @@ npm install
 # Start development server
 npm run dev
 
-```
 
-## 📦 Environment Variables
-
-```env
-NEXT_PUBLIC_RPC_URL=your_rpc_url
-NEXT_PUBLIC_SPONSOR_PRIVATE_KEY=your_sponsor_key
-NEXT_PUBLIC_GAS_SPONSORSHIP_ENABLED=true
-```
 
 ## 🔗 Live Demo
 
